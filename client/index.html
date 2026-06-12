@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>💣 BombBlitz</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💣</text></svg>" />
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="/css/lobby.css" />
+</head>
+<body>
+  <main class="home">
+    <header class="home-header">
+      <h1 class="logo">💣 BombBlitz</h1>
+      <p class="tagline">Le clone de BombParty — 4 modes, en ligne, entre amis</p>
+    </header>
+
+    <section class="home-card">
+      <div class="field">
+        <label for="username">Ton pseudo</label>
+        <input id="username" type="text" placeholder="Ton pseudo" maxlength="16" autocomplete="off" />
+      </div>
+
+      <div class="actions">
+        <div class="action-block">
+          <h3>🚀 Nouvelle partie</h3>
+          <button id="createBtn" class="btn btn-primary">Créer une salle</button>
+        </div>
+
+        <div class="action-block">
+          <h3>🔑 Rejoindre</h3>
+          <div class="join-row">
+            <input id="joinCode" type="text" placeholder="CODE" maxlength="4" autocomplete="off" />
+            <button id="joinBtn" class="btn btn-accent">OK</button>
+          </div>
+        </div>
+      </div>
+
+      <p id="error" class="error-msg"></p>
+    </section>
+
+    <footer class="home-footer">
+      Tour par tour • Réponds avant l'explosion • Dernier survivant gagne
+    </footer>
+  </main>
+
+  <script src="/js/lobby.js" type="module"></script>
+</body>
+</html>

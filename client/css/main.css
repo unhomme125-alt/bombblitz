@@ -1,0 +1,167 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+:root {
+  --bg-dark: #0d0d1a;
+  --bg-card: #1a1a2e;
+  --accent: #ff4444;
+  --accent-safe: #44ff88;
+  --accent-warn: #ffaa00;
+  --text-primary: #f0f0ff;
+  --text-muted: #8888aa;
+  --player-ring: #6644ff;
+
+  --font-display: 'Bebas Neue', cursive;
+  --font-ui: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-ui);
+  color: var(--text-primary);
+  background: var(--bg-dark);
+  /* Dégradé radial violet sombre — pas de fond plat. */
+  background-image:
+    radial-gradient(circle at 50% 30%, #1d1640 0%, transparent 55%),
+    radial-gradient(circle at 50% 120%, #2a1245 0%, transparent 60%);
+  background-attachment: fixed;
+  min-height: 100%;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: var(--font-ui);
+  cursor: pointer;
+  border: none;
+  color: inherit;
+  background: none;
+}
+
+input {
+  font-family: var(--font-ui);
+}
+
+.btn {
+  border-radius: 10px;
+  padding: 0.8rem 1.4rem;
+  font-weight: 700;
+  font-size: 1rem;
+  transition: transform 0.08s ease, filter 0.15s ease, box-shadow 0.15s ease;
+  background: var(--bg-card);
+  border: 1px solid #2c2c4a;
+}
+
+.btn:hover {
+  filter: brightness(1.15);
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), #c92a2a);
+  border: none;
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(255, 68, 68, 0.35);
+}
+
+.btn-accent {
+  background: linear-gradient(135deg, var(--player-ring), #4422cc);
+  border: none;
+  color: #fff;
+}
+
+input[type='text'],
+input[type='number'] {
+  background: #12121f;
+  border: 1px solid #2c2c4a;
+  border-radius: 10px;
+  color: var(--text-primary);
+  padding: 0.8rem 1rem;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+input[type='text']:focus,
+input[type='number']:focus {
+  border-color: var(--player-ring);
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* --- Modal générique --- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 5, 12, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+.modal {
+  background: var(--bg-card);
+  border: 1px solid #2c2c4a;
+  border-radius: 18px;
+  padding: 2rem;
+  max-width: 90vw;
+  width: 420px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: popIn 0.25s cubic-bezier(0.2, 1.4, 0.5, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.85) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* --- Toast --- */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-card);
+  border: 1px solid #2c2c4a;
+  padding: 0.7rem 1.2rem;
+  border-radius: 10px;
+  z-index: 200;
+  animation: toastIn 0.25s ease;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translate(-50%, 14px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}

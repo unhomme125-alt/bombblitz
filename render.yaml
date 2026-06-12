@@ -1,0 +1,14 @@
+# Blueprint Render — déploiement en un clic.
+# Sur https://dashboard.render.com → New → Blueprint → sélectionne ce repo.
+services:
+  - type: web
+    name: bombblitz
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"

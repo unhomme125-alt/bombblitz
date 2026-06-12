@@ -1,0 +1,23 @@
+{
+  "name": "bombblitz",
+  "version": "1.0.0",
+  "description": "Clone de BombParty multi-mode (Node.js/Express + Socket.IO + vanilla JS)",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev:server": "node server/server.js",
+    "dev:client": "vite",
+    "build": "vite build",
+    "start": "node server/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}

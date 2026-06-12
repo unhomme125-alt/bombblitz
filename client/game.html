@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>💣 BombBlitz</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💣</text></svg>" />
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="/css/game.css" />
+</head>
+<body>
+  <!-- Barre supérieure -->
+  <header class="topbar">
+    <div class="room-tag">
+      <span class="room-label">Salle</span>
+      <span class="room-code" id="roomCode">····</span>
+      <button class="icon-btn" id="copyCode" title="Copier le code">📋</button>
+    </div>
+    <div class="round-info" id="roundInfo"></div>
+    <div class="volume-control">
+      <button class="icon-btn" id="volumeBtn" title="Volume">🔊</button>
+      <div class="volume-panel hidden" id="volumePanel">
+        <input type="range" id="volumeSlider" min="0" max="1" step="0.05" />
+      </div>
+    </div>
+  </header>
+
+  <!-- ====================== VUE LOBBY ====================== -->
+  <main class="lobby-view" id="lobbyView">
+    <div class="lobby-grid">
+      <section class="panel">
+        <h2>Joueurs</h2>
+        <div class="lobby-players" id="lobbyPlayers"></div>
+      </section>
+
+      <section class="panel">
+        <!-- Contrôles de l'hôte -->
+        <div id="hostControls">
+          <h2>Mode de jeu</h2>
+          <div class="mode-select">
+            <button class="mode-btn" data-mode="countries"><span>🌍</span>Pays</button>
+            <button class="mode-btn" data-mode="capitals"><span>🏛️</span>Capitales</button>
+            <button class="mode-btn" data-mode="math"><span>➕</span>Calcul</button>
+            <button class="mode-btn" data-mode="classic"><span>📖</span>Classique</button>
+          </div>
+
+          <div class="config-row">
+            <label>Nombre de manches : <strong id="roundsVal">3</strong></label>
+            <input type="range" id="roundsRange" min="1" max="10" step="1" value="3" />
+          </div>
+          <div class="config-row">
+            <label>Vies par joueur : <strong id="livesVal">3</strong></label>
+            <input type="range" id="livesRange" min="1" max="5" step="1" value="3" />
+          </div>
+
+          <div class="variants">
+            <button class="variant-btn" id="blitzBtn" data-variant="blitz">
+              <span>⚡</span>
+              <span class="v-name">Blitz</span>
+              <span class="v-desc">Beaucoup moins de temps</span>
+            </button>
+            <button class="variant-btn" id="sdBtn" data-variant="suddenDeath">
+              <span>💀</span>
+              <span class="v-name">Mort subite</span>
+              <span class="v-desc">Une seule vie chacun</span>
+            </button>
+          </div>
+
+          <div class="bots-row">
+            <span>🤖 Bots de test</span>
+            <div class="bots-ctrl">
+              <button class="icon-btn bot-btn" id="removeBotBtn">−</button>
+              <span id="botCount">0</span>
+              <button class="icon-btn bot-btn" id="addBotBtn">+</button>
+            </div>
+          </div>
+
+          <button class="btn btn-primary start-btn" id="startBtn">💥 LANCER LA PARTIE</button>
+        </div>
+
+        <!-- Vue invité -->
+        <div id="guestInfo" class="hidden">
+          <h2>Mode choisi</h2>
+          <div class="guest-mode" id="guestMode">—</div>
+          <div class="guest-variants" id="guestVariants"></div>
+          <p class="waiting">En attente du lancement par l'hôte…</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ====================== VUE JEU ====================== -->
+  <main class="game-view hidden" id="gameView">
+    <div class="arena" id="arena">
+      <div class="players-layer" id="players"></div>
+      <div class="bomb-center" id="bombContainer"></div>
+    </div>
+
+    <div class="challenge" id="challenge">
+      <div class="challenge-label" id="challengeLabel">Combinaison</div>
+      <div class="challenge-text" id="challengeText">—</div>
+    </div>
+
+    <div class="input-area" id="inputArea">
+      <input type="text" id="answerInput" placeholder="Ta réponse…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+    </div>
+    <p class="spectator-note hidden" id="spectatorNote">⏳ Au tour d'un autre joueur…</p>
+  </main>
+
+  <!-- Modales -->
+  <div class="modal-overlay hidden" id="roundEndModal"><div class="modal"></div></div>
+  <div class="modal-overlay hidden" id="gameEndModal"><div class="modal"></div></div>
+
+  <div class="modal-overlay hidden" id="createdModal">
+    <div class="modal">
+      <h2>Salle créée !</h2>
+      <p style="color:var(--text-muted)">Partage ce code avec tes amis :</p>
+      <div class="code-display" data-code>····</div>
+      <div style="display:flex;gap:0.6rem;justify-content:center;margin-top:1rem">
+        <button class="btn btn-accent" data-copy>📋 Copier</button>
+        <button class="btn btn-primary" data-close>C'est parti</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/game.js" type="module"></script>
+</body>
+</html>
