@@ -42,28 +42,50 @@
             <button class="mode-btn" data-mode="capitals"><span>🏛️</span>Capitales</button>
             <button class="mode-btn" data-mode="math"><span>➕</span>Calcul</button>
             <button class="mode-btn" data-mode="classic"><span>📖</span>Classique</button>
+            <button class="mode-btn mode-coop" data-mode="coop"><span>💣</span>Coopératif</button>
           </div>
 
           <div class="config-row">
             <label>Nombre de manches : <strong id="roundsVal">3</strong></label>
             <input type="range" id="roundsRange" min="1" max="10" step="1" value="3" />
           </div>
-          <div class="config-row">
-            <label>Vies par joueur : <strong id="livesVal">3</strong></label>
-            <input type="range" id="livesRange" min="1" max="5" step="1" value="3" />
+
+          <!-- Réglages des modes compétitifs -->
+          <div id="normalConfig">
+            <div class="config-row">
+              <label>Vies par joueur : <strong id="livesVal">3</strong></label>
+              <input type="range" id="livesRange" min="1" max="5" step="1" value="3" />
+            </div>
+
+            <div class="variants">
+              <button class="variant-btn" id="blitzBtn" data-variant="blitz">
+                <span>⚡</span>
+                <span class="v-name">Blitz</span>
+                <span class="v-desc">Beaucoup moins de temps</span>
+              </button>
+              <button class="variant-btn" id="sdBtn" data-variant="suddenDeath">
+                <span>💀</span>
+                <span class="v-name">Mort subite</span>
+                <span class="v-desc">Une seule vie chacun</span>
+              </button>
+            </div>
           </div>
 
-          <div class="variants">
-            <button class="variant-btn" id="blitzBtn" data-variant="blitz">
-              <span>⚡</span>
-              <span class="v-name">Blitz</span>
-              <span class="v-desc">Beaucoup moins de temps</span>
-            </button>
-            <button class="variant-btn" id="sdBtn" data-variant="suddenDeath">
-              <span>💀</span>
-              <span class="v-name">Mort subite</span>
-              <span class="v-desc">Une seule vie chacun</span>
-            </button>
+          <!-- Réglages du mode coopératif -->
+          <div id="coopConfig" class="hidden">
+            <div class="config-row">
+              <label>⏱️ Temps imparti : <strong id="coopTimeVal">60 secondes</strong></label>
+              <input type="range" id="coopTimeRange" min="30" max="120" step="15" value="60" />
+            </div>
+            <div class="config-row">
+              <label>Type de challenge</label>
+              <div class="submode-select">
+                <button class="submode-btn" data-submode="classic">📖 Classique</button>
+                <button class="submode-btn" data-submode="countries">🌍 Pays</button>
+                <button class="submode-btn" data-submode="capitals">🏛️ Capitales</button>
+                <button class="submode-btn" data-submode="math">➕ Calcul</button>
+              </div>
+            </div>
           </div>
 
           <div class="bots-row">
@@ -94,6 +116,13 @@
     <div class="arena" id="arena">
       <div class="players-layer" id="players"></div>
       <div class="bomb-center" id="bombContainer"></div>
+      <!-- Coopératif : message de pénalité au centre -->
+      <div class="coop-penalty-flash hidden" id="coopFlash">⚡ TEMPS ACCÉLÉRÉ !</div>
+      <!-- Coopératif : compteur de progression sous la bombe -->
+      <div class="coop-progress hidden" id="coopProgress">
+        <div class="coop-progress-bar"><span id="coopProgressFill"></span></div>
+        <div class="coop-progress-label" id="coopProgressLabel">0 / 0 désamorcés 🔧</div>
+      </div>
     </div>
 
     <div class="challenge" id="challenge">

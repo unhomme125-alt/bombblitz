@@ -52,7 +52,15 @@ export function createRoom(hostSocket, username) {
     code,
     hostId: hostSocket.id,
     players: [makePlayer(hostSocket.id, username, PLAYER_COLORS[0])],
-    config: { mode: 'classic', rounds: 3, lives: 3, blitz: false, suddenDeath: false },
+    config: {
+      mode: 'classic',
+      rounds: 3,
+      lives: 3,
+      blitz: false,
+      suddenDeath: false,
+      coopTime: 60000, // ms, mode coopératif
+      coopSubMode: 'classic'
+    },
     state: 'lobby', // 'lobby' | 'playing' | 'roundEnd' | 'gameEnd'
     currentRound: 0,
     currentTurnIndex: 0,
@@ -65,6 +73,9 @@ export function createRoom(hostSocket, username) {
     turnTimer: null,
     tickTimer: null,
     botTimer: null,
+    coopGlobalTimer: null,
+    coopTurnTimer: null,
+    coop: null,
     turnStartTime: 0,
     turnDuration: 0,
     lastActivity: Date.now()
@@ -127,7 +138,7 @@ export function getRoomByCode(code) {
 export function setRoomConfig(code, config) {
   const room = getRoomByCode(code)
   if (!room) return null
-  if (config.mode && ['classic', 'countries', 'capitals', 'math'].includes(config.mode))
+  if (config.mode && ['classic', 'countries', 'capitals', 'math', 'coop'].includes(config.mode))
     room.config.mode = config.mode
   if (Number.isFinite(config.rounds))
     room.config.rounds = Math.min(10, Math.max(1, Math.round(config.rounds)))
@@ -135,6 +146,11 @@ export function setRoomConfig(code, config) {
     room.config.lives = Math.min(5, Math.max(1, Math.round(config.lives)))
   if (typeof config.blitz === 'boolean') room.config.blitz = config.blitz
   if (typeof config.suddenDeath === 'boolean') room.config.suddenDeath = config.suddenDeath
+  // Mode coopératif : temps global (30-120s, pas de 15s) et sous-mode.
+  if (Number.isFinite(config.coopTime))
+    room.config.coopTime = Math.min(120000, Math.max(30000, Math.round(config.coopTime / 15000) * 15000))
+  if (config.coopSubMode && ['classic', 'countries', 'capitals', 'math'].includes(config.coopSubMode))
+    room.config.coopSubMode = config.coopSubMode
   room.lastActivity = Date.now()
   return room
 }
@@ -168,6 +184,16 @@ export function clearRoomTimers(room) {
   if (room.turnTimer) { clearTimeout(room.turnTimer); room.turnTimer = null }
   if (room.tickTimer) { clearInterval(room.tickTimer); room.tickTimer = null }
   if (room.botTimer) { clearTimeout(room.botTimer); room.botTimer = null }
+  if (room.coopGlobalTimer) { clearInterval(room.coopGlobalTimer); room.coopGlobalTimer = null }
+  if (room.coopTurnTimer) { clearTimeout(room.coopTurnTimer); room.coopTurnTimer = null }
+}
+
+// Nettoie uniquement les timers de TOUR (pas le timer global coop) — utilisé
+// entre deux challenges coopératifs pour ne pas tuer la bombe partagée.
+export function clearCoopTurnTimers(room) {
+  if (room.coopTurnTimer) { clearTimeout(room.coopTurnTimer); room.coopTurnTimer = null }
+  if (room.botTimer) { clearTimeout(room.botTimer); room.botTimer = null }
+  if (room.turnTimer) { clearTimeout(room.turnTimer); room.turnTimer = null }
 }
 
 // Vue « publique » d'un joueur (sans champ interne sensible).

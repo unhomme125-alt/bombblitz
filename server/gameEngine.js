@@ -4,11 +4,12 @@
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
-import { clearRoomTimers, publicPlayers } from './roomManager.js'
+import { clearRoomTimers, clearCoopTurnTimers, publicPlayers } from './roomManager.js'
 import * as classic from './modes/classic.js'
 import * as countries from './modes/countries.js'
 import * as capitals from './modes/capitals.js'
 import * as math from './modes/math.js'
+import * as coop from './modes/coop.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const load = (f) => JSON.parse(readFileSync(join(__dirname, 'data', f), 'utf-8'))
@@ -68,9 +69,14 @@ function bombDuration(room) {
 // Génération / validation déléguées au mode courant
 // ---------------------------------------------------------------------------
 
+// En mode coopératif, le type de challenge est défini par le sous-mode.
+function effectiveMode(room) {
+  return room.config.mode === 'coop' ? room.config.coopSubMode : room.config.mode
+}
+
 // Renvoie { challenge (état interne), payload (envoyé au client) }.
 function makeChallenge(room) {
-  const mode = room.config.mode
+  const mode = effectiveMode(room)
   if (mode === 'classic') {
     const syllable = classic.generateChallenge(
       room.usedChallenges, WORDS_ARR, room.successCount
@@ -109,7 +115,7 @@ function makeChallenge(room) {
 
 // Valide la réponse selon le mode. Renvoie { valid, display, exhausted, reason }.
 function validate(room, answer) {
-  const mode = room.config.mode
+  const mode = effectiveMode(room)
   const ch = room.currentChallenge
   if (mode === 'classic') {
     const r = classic.validateAnswer(ch.syllable, answer, room.usedAnswers, WORDS)
@@ -136,6 +142,7 @@ export function startGame(room, io) {
 
 // Initialise et démarre une nouvelle manche.
 export function startRound(room, io) {
+  if (room.config.mode === 'coop') return startCoopRound(room, io)
   clearRoomTimers(room)
   room.currentRound += 1
   room.state = 'playing'
@@ -218,6 +225,7 @@ export function startTurn(room, io) {
 // Traite une réponse soumise par un socket (joueur humain).
 export function handleAnswer(room, socket, answer, io) {
   if (room.state !== 'playing') return
+  if (room.config.mode === 'coop') return handleCoopAnswer(room, socket.id, answer, io)
   const active = room.players[room.currentTurnIndex]
   if (!active || active.id !== socket.id) return // pas son tour
 
@@ -266,7 +274,7 @@ function applyCorrectAnswer(room, active, result, rawAnswer, io) {
 
 // Trouve une réponse correcte pour le challenge courant, ou null.
 function getBotAnswer(room) {
-  const mode = room.config.mode
+  const mode = effectiveMode(room)
   const ch = room.currentChallenge
   if (mode === 'math') return String(ch.answer)
   if (mode === 'classic') {
@@ -367,6 +375,10 @@ export function endRound(room, io, reason = 'lastAlive') {
 export function advanceNow(room, io) {
   if (room.state !== 'roundEnd') return
   clearRoomTimers(room)
+  if (room.config.mode === 'coop') {
+    if (room.currentRound < room.config.rounds) startCoopRound(room, io)
+    return // dernière manche coop : on reste sur l'écran de résultat
+  }
   if (room.currentRound >= room.config.rounds) endGame(room, io)
   else startRound(room, io)
 }
@@ -393,9 +405,182 @@ export function endGame(room, io) {
   })
 }
 
+// =========================================================================
+// Mode Coopératif — orchestration des tours et du timer global partagé
+// =========================================================================
+
+function startCoopRound(room, io) {
+  clearRoomTimers(room)
+  room.currentRound += 1
+  room.state = 'playing'
+  room.usedAnswers = new Set()
+  room.usedChallenges = new Set()
+  for (const p of room.players) { p.eliminated = false; p.coopSolved = 0 }
+
+  room.coop = coop.initCoopRound(room)
+  room.currentTurnIndex = (room.currentRound - 1) % room.players.length
+
+  io.to(room.code).emit('game:roundStart', {
+    round: room.currentRound,
+    totalRounds: room.config.rounds,
+    players: publicPlayers(room),
+    config: room.config
+  })
+
+  // Timer global partagé : tick toutes les 100 ms, défaite si épuisé.
+  room.coopGlobalTimer = setInterval(() => {
+    if (room.state !== 'playing') return
+    const remaining = coop.tickGlobalTimer(room, io)
+    if (remaining <= 0) coopEnd(room, io, false)
+  }, 100)
+
+  startCoopTurn(room, io)
+}
+
+function startCoopTurn(room, io) {
+  clearCoopTurnTimers(room)
+  if (room.state !== 'playing') return
+
+  const active = room.players[room.currentTurnIndex]
+  if (!active) return
+
+  room.coop.turnNumber += 1
+  // Synchronise les compteurs lus par makeChallenge (difficulté du sous-mode).
+  room.turnNumber = room.coop.turnNumber
+  room.successCount = room.coop.challengesSolved
+
+  let made = makeChallenge(room)
+  if (!made) {
+    // Sous-mode pays/capitales épuisé : on régénère la liste pour continuer.
+    room.usedAnswers = new Set()
+    made = makeChallenge(room)
+    if (!made) return
+  }
+  room.currentChallenge = made.challenge
+  room.turnStartTime = Date.now()
+
+  io.to(room.code).emit('game:turn', {
+    playerId: active.id,
+    challenge: made.payload,
+    timeLimit: 5000,
+    coopMode: true,
+    progress: { solved: room.coop.challengesSolved, needed: room.coop.challengesNeeded }
+  })
+
+  // Timer individuel de 5 s : un dépassement compte comme une erreur.
+  room.coopTurnTimer = setTimeout(() => coopFail(room, io, 'timeout'), 5000)
+
+  if (active.isBot) scheduleCoopBotMove(room, active, io)
+}
+
+// Réponse coopérative (humain ou bot).
+function handleCoopAnswer(room, playerId, answer, io) {
+  if (!room.coop || room.state !== 'playing') return
+  const active = room.players[room.currentTurnIndex]
+  if (!active || active.id !== playerId) return // pas son tour
+
+  const result = validate(room, answer)
+  if (!result.valid) return coopFail(room, io, 'wrong')
+
+  // Bonne réponse : aucun changement de timer, challenge suivant immédiat.
+  clearCoopTurnTimers(room)
+  room.coop.challengesSolved += 1
+  room.coop.solvedByPlayer[active.id] = (room.coop.solvedByPlayer[active.id] || 0) + 1
+  active.coopSolved = room.coop.solvedByPlayer[active.id]
+  if (result.normalized) room.usedAnswers.add(result.normalized)
+
+  io.to(room.code).emit('game:answerResult', {
+    playerId: active.id,
+    correct: true,
+    coop: true,
+    answer: result.display || answer,
+    progress: { solved: room.coop.challengesSolved, needed: room.coop.challengesNeeded }
+  })
+
+  const end = coop.checkCoopEnd(room.coop)
+  if (end.ended) return coopEnd(room, io, end.victory)
+
+  room.currentTurnIndex = (room.currentTurnIndex + 1) % room.players.length
+  room.turnTimer = setTimeout(() => startCoopTurn(room, io), 350)
+}
+
+// Erreur (mauvaise réponse ou timeout individuel) → pénalité de 10 % du temps.
+function coopFail(room, io, reason) {
+  if (!room.coop || room.state !== 'playing') return
+  clearCoopTurnTimers(room)
+  const active = room.players[room.currentTurnIndex]
+
+  const { newTimeRemaining, penaltyMs } = coop.applyPenalty(room.coop)
+  io.to(room.code).emit('coop:penalty', {
+    newTimeRemaining,
+    penaltyMs,
+    byPlayerId: active ? active.id : null
+  })
+  io.to(room.code).emit('game:answerResult', {
+    playerId: active ? active.id : null,
+    correct: false,
+    coop: true,
+    reason
+  })
+
+  const end = coop.checkCoopEnd(room.coop)
+  if (end.ended) return coopEnd(room, io, end.victory)
+
+  room.currentTurnIndex = (room.currentTurnIndex + 1) % room.players.length
+  room.turnTimer = setTimeout(() => startCoopTurn(room, io), 600)
+}
+
+// Coup automatique d'un bot en coopératif (répond ~82 %, sinon laisse expirer).
+function scheduleCoopBotMove(room, bot, io) {
+  if (Math.random() >= 0.82) return
+  const answer = getBotAnswer(room)
+  if (answer == null) return
+  const delay = 700 + Math.random() * 2500 // strictement < 5 s
+  room.botTimer = setTimeout(() => {
+    if (room.state !== 'playing') return
+    const active = room.players[room.currentTurnIndex]
+    if (!active || active.id !== bot.id) return
+    handleCoopAnswer(room, bot.id, answer, io)
+  }, delay)
+}
+
+// Fin de la manche coopérative (victoire ou défaite).
+function coopEnd(room, io, victory) {
+  if (room.state !== 'playing') return // évite une double fin
+  clearRoomTimers(room)
+  room.state = 'roundEnd'
+
+  io.to(room.code).emit('coop:end', {
+    victory,
+    timeRemaining: coop.timeLeft(room.coop),
+    solved: room.coop.challengesSolved,
+    needed: room.coop.challengesNeeded,
+    players: room.players.map((p) => ({
+      id: p.id,
+      username: p.username,
+      color: p.color,
+      isBot: p.isBot,
+      coopSolved: p.coopSolved || 0
+    }))
+  })
+
+  // Manche suivante automatique, ou écran final si c'était la dernière.
+  if (room.currentRound < room.config.rounds) {
+    room.turnTimer = setTimeout(() => startCoopRound(room, io), ROUND_BREAK_MS)
+  }
+}
+
 // Gère le départ/déconnexion d'un joueur pendant une partie.
 export function handlePlayerLeftDuringGame(room, leftId, io) {
   if (room.state !== 'playing') return
+
+  // En coopératif : on resserre simplement l'index de tour ; si le joueur actif
+  // est parti, son timer de 5 s expirera et appliquera la pénalité comme prévu.
+  if (room.config.mode === 'coop') {
+    if (room.players.length === 0) return
+    room.currentTurnIndex = room.currentTurnIndex % room.players.length
+    return
+  }
   const idx = room.players.findIndex((p) => p.id === leftId)
   const wasActive = idx === room.currentTurnIndex
 

@@ -4,7 +4,7 @@
 
 import socket from './socket.js'
 import * as ui from './ui.js'
-import { renderBomb, updateTimer, explode, resetBomb } from './bomb.js'
+import { renderBomb, updateTimer, explode, resetBomb, penaltyEffect, setArcFastTransition } from './bomb.js'
 import * as sfx from './sounds.js'
 
 // --- État local -----------------------------------------------------------
@@ -22,8 +22,10 @@ const MODE_NAMES = {
   classic: '📖 Classique',
   countries: '🌍 Pays',
   capitals: '🏛️ Capitales',
-  math: '➕ Calcul'
+  math: '➕ Calcul',
+  coop: '💣 Coopératif'
 }
+let coopMode = false // partie coopérative en cours côté client
 
 // --- Raccourcis DOM -------------------------------------------------------
 const $ = (id) => document.getElementById(id)
@@ -94,13 +96,20 @@ socket.on('room:error', (data) => {
 socket.on('game:roundStart', (data) => {
   config = data.config
   players = data.players
+  coopMode = config.mode === 'coop'
   ui.hideRoundEnd()
   ui.hideGameEnd()
   switchToGame()
-  $('roundInfo').textContent = `Manche ${data.round}/${data.totalRounds}`
+  $('roundInfo').textContent = coopMode
+    ? `Coop ${data.round}/${data.totalRounds}`
+    : `Manche ${data.round}/${data.totalRounds}`
   $('roundInfo').classList.remove('hidden')
   ui.renderPlayers(players, config.mode)
+  $('arena').classList.toggle('coop', coopMode)
   resetBomb()
+  setArcFastTransition(false)
+  if (coopMode) ui.showCoopProgress(0, Math.max(10, players.length * 5))
+  else ui.hideCoopProgress()
 })
 
 socket.on('game:turn', (data) => {
@@ -109,8 +118,14 @@ socket.on('game:turn', (data) => {
   lastTickKey = -1
   ui.highlightActivePlayer(activePlayerId)
   showChallenge(data.challenge)
-  resetBomb()
   setupInput()
+  if (data.coopMode) {
+    // En coop, le timer de la bombe est le timer GLOBAL (coop:tick) : on ne
+    // réinitialise pas l'arc à chaque tour, on met juste à jour la progression.
+    if (data.progress) ui.showCoopProgress(data.progress.solved, data.progress.needed)
+  } else {
+    resetBomb()
+  }
 })
 
 socket.on('game:bombTick', (data) => {
@@ -126,14 +141,20 @@ socket.on('game:bombTick', (data) => {
 })
 
 socket.on('game:answerResult', (data) => {
-  ui.showAnswerFeedback(data.playerId, true)
-  sfx.playCorrect()
+  ui.showAnswerFeedback(data.playerId, !!data.correct)
+  if (data.correct) sfx.playCorrect()
+  else sfx.playFail()
   ui.clearTyping(data.playerId)
-  // Met à jour le score (points de rapidité).
-  const p = players.find((x) => x.id === data.playerId)
-  if (p) {
-    p.speedPoints = data.speedPoints
-    ui.updatePlayerScore(p.id, p, config.mode)
+
+  if (data.coop) {
+    // Coopératif : pas de points de rapidité ; on met à jour la progression.
+    if (data.progress) ui.showCoopProgress(data.progress.solved, data.progress.needed)
+  } else if (data.correct) {
+    const p = players.find((x) => x.id === data.playerId)
+    if (p && data.speedPoints != null) {
+      p.speedPoints = data.speedPoints
+      ui.updatePlayerScore(p.id, p, config.mode)
+    }
   }
   if (data.playerId === MY_ID) clearInput()
 })
@@ -186,6 +207,39 @@ socket.on('game:typing', (data) => {
   if (data.playerId !== MY_ID) ui.broadcastTyping(data.playerId, data.text)
 })
 
+// --- Mode Coopératif ------------------------------------------------------
+
+socket.on('coop:tick', (data) => {
+  updateTimer(data.fraction, data.timeRemaining / 1000)
+  // Tic sonore qui accélère avec l'urgence.
+  const urgency = 1 - data.fraction
+  const ticksPerSec = 1 + Math.floor(urgency * 3)
+  const key = Math.floor((data.timeRemaining / 1000) * ticksPerSec)
+  if (key !== lastTickKey && data.timeRemaining > 0) {
+    lastTickKey = key
+    sfx.playTick(urgency)
+  }
+})
+
+socket.on('coop:penalty', (data) => {
+  const total = config.coopTime || 60000
+  setArcFastTransition(true)
+  updateTimer(Math.max(0, data.newTimeRemaining / total), data.newTimeRemaining / 1000)
+  penaltyEffect()
+  ui.coopPenaltyFlash()
+  sfx.playFail()
+  setTimeout(() => setArcFastTransition(false), 320)
+})
+
+socket.on('coop:end', (data) => {
+  coopMode = true
+  activePlayerId = null
+  ui.highlightActivePlayer(null)
+  if (!data.victory) explode()
+  ui.hideCoopProgress()
+  ui.showCoopEnd(data, () => socket.emit('game:start'), isHost)
+})
+
 // --- Vue lobby ------------------------------------------------------------
 function renderLobby() {
   lobbyView.classList.remove('hidden')
@@ -218,10 +272,23 @@ function renderLobby() {
   $('livesRange').value = config.lives
   $('livesVal').textContent = config.lives
 
-  // Variantes Blitz / Mort subite.
+  // Bascule entre réglages compétitifs et coopératifs.
+  const isCoop = config.mode === 'coop'
+  $('normalConfig').classList.toggle('hidden', isCoop)
+  $('coopConfig').classList.toggle('hidden', !isCoop)
+
+  // Variantes Blitz / Mort subite (modes compétitifs).
   $('blitzBtn').classList.toggle('selected', !!config.blitz)
   $('sdBtn').classList.toggle('selected', !!config.suddenDeath)
   $('livesRange').disabled = !!config.suddenDeath // mort subite force 1 vie
+
+  // Réglages coopératifs.
+  const secs = Math.round((config.coopTime || 60000) / 1000)
+  $('coopTimeRange').value = secs
+  $('coopTimeVal').textContent = `${secs} secondes`
+  document.querySelectorAll('.submode-btn').forEach((b) => {
+    b.classList.toggle('selected', b.dataset.submode === config.coopSubMode)
+  })
 
   // Compteur de bots.
   const botCount = players.filter((p) => p.isBot).length
@@ -231,10 +298,14 @@ function renderLobby() {
 
   // Récap pour l'invité.
   $('guestMode').textContent = MODE_NAMES[config.mode] || config.mode
-  const variants = []
-  if (config.blitz) variants.push('⚡ Blitz')
-  if (config.suddenDeath) variants.push('💀 Mort subite')
-  $('guestVariants').textContent = variants.join('  ·  ')
+  if (isCoop) {
+    $('guestVariants').textContent = `${MODE_NAMES[config.coopSubMode]} · ${secs}s`
+  } else {
+    const variants = []
+    if (config.blitz) variants.push('⚡ Blitz')
+    if (config.suddenDeath) variants.push('💀 Mort subite')
+    $('guestVariants').textContent = variants.join('  ·  ')
+  }
 
   $('startBtn').disabled = players.length < 1
 }
@@ -258,6 +329,16 @@ $('roundsRange').addEventListener('input', (e) => {
 $('livesRange').addEventListener('input', (e) => {
   $('livesVal').textContent = e.target.value
   if (isHost) socket.emit('lobby:setConfig', { rounds: +$('roundsRange').value, lives: +e.target.value })
+})
+
+$('coopTimeRange').addEventListener('input', (e) => {
+  $('coopTimeVal').textContent = `${e.target.value} secondes`
+  if (isHost) socket.emit('lobby:setConfig', { coopTime: +e.target.value * 1000 })
+})
+document.querySelectorAll('.submode-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    if (isHost) socket.emit('lobby:setConfig', { coopSubMode: btn.dataset.submode })
+  })
 })
 
 $('blitzBtn').addEventListener('click', () => {

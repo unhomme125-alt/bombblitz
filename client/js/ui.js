@@ -252,6 +252,7 @@ export function showGameEnd(data, onReplay, isHost) {
     })
     .join('')
 
+  overlay.querySelector('.modal').className = 'modal'
   overlay.querySelector('.modal').innerHTML = `
     <h2 class="ge-title">🏁 Partie terminée</h2>
     <div class="champion">Champion : <strong>${escapeHtml(scores[0]?.username || '—')}</strong></div>
@@ -267,6 +268,71 @@ export function showGameEnd(data, onReplay, isHost) {
 
 export function hideGameEnd() {
   document.getElementById('gameEndModal').classList.add('hidden')
+}
+
+// --- Mode Coopératif ------------------------------------------------------
+
+export function showCoopProgress(solved, needed) {
+  const wrap = document.getElementById('coopProgress')
+  const fill = document.getElementById('coopProgressFill')
+  const label = document.getElementById('coopProgressLabel')
+  if (!wrap) return
+  wrap.classList.remove('hidden')
+  const pct = needed ? Math.min(100, (solved / needed) * 100) : 0
+  if (fill) fill.style.width = `${pct}%`
+  if (label) label.textContent = `${solved} / ${needed} désamorcés 🔧`
+}
+
+export function hideCoopProgress() {
+  const wrap = document.getElementById('coopProgress')
+  if (wrap) wrap.classList.add('hidden')
+}
+
+// Message « ⚡ TEMPS ACCÉLÉRÉ ! » qui apparaît au centre (scale 0→1.2→1, fondu).
+export function coopPenaltyFlash() {
+  const el = document.getElementById('coopFlash')
+  if (!el) return
+  el.classList.remove('hidden')
+  el.classList.remove('animate')
+  void el.offsetWidth
+  el.classList.add('animate')
+  setTimeout(() => el.classList.add('hidden'), 1000)
+}
+
+// Écran de fin coopératif (victoire verte qui pulse / défaite avec explosion).
+export function showCoopEnd(data, onReplay, isHost) {
+  const overlay = document.getElementById('gameEndModal')
+  const stats = data.players
+    .slice()
+    .sort((a, b) => b.coopSolved - a.coopSolved)
+    .map(
+      (p) => `
+      <div class="rank-row">
+        <span class="rk-name"><span class="dot" style="background:${p.color}"></span>${p.isBot ? '🤖 ' : ''}${escapeHtml(p.username)}</span>
+        <span class="rk-score">${p.coopSolved} 🔧</span>
+      </div>`
+    )
+    .join('')
+
+  const secLeft = Math.ceil((data.timeRemaining || 0) / 1000)
+  const body = data.victory
+    ? `
+      <h2 class="ge-title">💥 BOMBE DÉSAMORCÉE !</h2>
+      <p class="champion">Vous avez résolu <strong>${data.solved}/${data.needed}</strong> challenges avec ${secLeft}s d'avance 🎉</p>
+      <div class="rank-board">${stats}</div>`
+    : `
+      <h2 class="ge-title" style="color:var(--accent)">💀 VOUS AVEZ ÉCHOUÉ</h2>
+      <p class="champion">La bombe a explosé. <strong>${data.solved}/${data.needed}</strong> challenges résolus — temps restant : 0s.</p>
+      <div class="rank-board">${stats}</div>`
+
+  overlay.querySelector('.modal').className = `modal ${data.victory ? 'coop-victory' : 'coop-defeat'}`
+  overlay.querySelector('.modal').innerHTML = `
+    ${body}
+    ${isHost ? '<button class="btn btn-primary" id="replayBtn">Rejouer</button>' : '<p class="re-wait">L\'hôte peut relancer une partie.</p>'}
+    <a href="index.html" class="btn" style="display:inline-block;margin-top:0.6rem;text-decoration:none">Quitter</a>
+  `
+  overlay.classList.remove('hidden')
+  if (isHost) overlay.querySelector('#replayBtn').addEventListener('click', onReplay)
 }
 
 export function toast(msg) {

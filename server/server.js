@@ -77,10 +77,10 @@ io.on('connection', (socket) => {
     broadcastPlayers(room)
   })
 
-  socket.on('lobby:setConfig', ({ rounds, lives, blitz, suddenDeath }) => {
+  socket.on('lobby:setConfig', (cfg) => {
     const room = rooms.getRoomBySocket(socket.id)
     if (!room || room.hostId !== socket.id || room.state !== 'lobby') return
-    rooms.setRoomConfig(room.code, { rounds, lives, blitz, suddenDeath })
+    rooms.setRoomConfig(room.code, cfg || {})
     broadcastPlayers(room)
   })
 

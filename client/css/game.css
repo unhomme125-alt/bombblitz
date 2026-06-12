@@ -621,6 +621,129 @@ body {
 .pp-name { font-weight: 700; }
 .pp-score { font-size: 0.8rem; color: var(--text-muted); }
 
+/* ============ MODE COOPÉRATIF ============ */
+
+/* Bouton de mode coop : vert (esprit d'équipe) au lieu de violet. */
+.mode-coop.selected {
+  border-color: var(--accent-safe);
+  background: rgba(68, 255, 136, 0.14);
+  box-shadow: 0 0 0 3px rgba(68, 255, 136, 0.22);
+}
+
+.submode-select {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+.submode-btn {
+  padding: 0.6rem;
+  background: #12121f;
+  border: 2px solid #25253f;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.15s ease;
+}
+.submode-btn:hover { border-color: #3a3a5c; }
+.submode-btn.selected {
+  border-color: var(--accent-safe);
+  background: rgba(68, 255, 136, 0.12);
+}
+
+/* Compteur de progression sous la bombe. */
+.coop-progress {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 130px);
+  transform: translateX(-50%);
+  width: 240px;
+  text-align: center;
+  z-index: 7;
+}
+.coop-progress-bar {
+  height: 14px;
+  background: #12121f;
+  border: 1px solid #25253f;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.coop-progress-bar span {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #44ff88, #69db7c);
+  border-radius: 8px;
+  transition: width 0.3s ease;
+}
+.coop-progress-label {
+  margin-top: 0.3rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--accent-safe);
+}
+
+/* Message « ⚡ TEMPS ACCÉLÉRÉ ! » au centre de l'arène. */
+.coop-penalty-flash {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  letter-spacing: 2px;
+  color: var(--accent);
+  text-shadow: 0 0 20px rgba(255, 68, 68, 0.7);
+  z-index: 20;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.coop-penalty-flash.animate {
+  animation: penaltyFlash 1s ease forwards;
+}
+@keyframes penaltyFlash {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+  30% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+  45% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+
+/* Pénalité sur la bombe : tremblement + flash rouge. */
+.bomb-wrap.penalty {
+  animation: shake 0.5s;
+}
+.bomb-wrap.penalty .bomb-svg {
+  filter: drop-shadow(0 0 16px rgba(255, 68, 68, 0.9));
+}
+
+/* Tour actif en coop : bordure clignotante discrète. */
+.arena.coop .player-card.active {
+  animation: coopBlink 0.8s ease-in-out infinite;
+}
+@keyframes coopBlink {
+  0%, 100% { border-color: var(--player-ring); }
+  50% { border-color: var(--accent-safe); }
+}
+
+/* Écrans de fin coopératifs. */
+.modal.coop-victory {
+  border-color: var(--accent-safe);
+  animation: victoryPulse 1.2s ease-in-out infinite;
+}
+@keyframes victoryPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(68, 255, 136, 0.3), 0 20px 60px rgba(0,0,0,0.5); }
+  50% { box-shadow: 0 0 0 12px rgba(68, 255, 136, 0), 0 20px 60px rgba(0,0,0,0.5); }
+}
+.modal.coop-victory .ge-title { color: var(--accent-safe); }
+.modal.coop-defeat {
+  border-color: var(--accent);
+  animation: defeatShake 0.5s ease;
+}
+@keyframes defeatShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
+
 /* ============ RESPONSIVE MOBILE ============ */
 @media (max-width: 768px) {
   .lobby-grid { grid-template-columns: 1fr; }
@@ -633,6 +756,9 @@ body {
     top: 130px;
   }
   .bomb-wrap, .bomb-svg { width: 180px; height: 180px; }
+
+  .coop-progress { top: 225px; }
+  .submode-select { grid-template-columns: 1fr; }
 
   /* Joueurs en rangée horizontale scrollable sous la bombe. */
   .players-layer {

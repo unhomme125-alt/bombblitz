@@ -106,6 +106,25 @@ export function explode() {
 // Réinitialise visuellement la bombe pour un nouveau tour.
 export function resetBomb() {
   if (!rootEl) return
-  rootEl.classList.remove('shake', 'exploding')
+  rootEl.classList.remove('shake', 'exploding', 'penalty')
   updateTimer(1)
+}
+
+// Effet de pénalité coopérative : tremblement + flash rouge (500 ms). L'arc lui
+// saute vers sa nouvelle valeur via l'appel updateTimer côté game.js.
+export function penaltyEffect() {
+  if (!rootEl) return
+  rootEl.classList.remove('penalty')
+  void rootEl.offsetWidth // relance l'animation
+  rootEl.classList.add('penalty')
+  setTimeout(() => rootEl && rootEl.classList.remove('penalty'), 500)
+}
+
+// En coopératif, l'arc doit « sauter » plus vite lors d'une pénalité : on
+// bascule temporairement la transition sur 200 ms.
+export function setArcFastTransition(on) {
+  const arc = document.getElementById('timerArc')
+  if (arc) arc.style.transition = on
+    ? 'stroke-dashoffset 0.2s ease, stroke 0.2s linear'
+    : 'stroke-dashoffset 0.1s linear, stroke 0.2s linear'
 }
