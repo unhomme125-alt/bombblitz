@@ -303,6 +303,60 @@ body {
   z-index: 5;
 }
 
+/* --- Aiguille de tour (pivote vers le joueur actif) --- */
+.turn-needle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  z-index: 4;
+  transform-origin: center;
+  transition: transform 0.65s cubic-bezier(0.34, 1.25, 0.5, 1);
+  pointer-events: none;
+}
+.needle-hand {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 7px;
+  height: clamp(120px, 30vmin, 240px);
+  border-radius: 5px;
+  background: linear-gradient(
+    to top,
+    rgba(102, 68, 255, 0) 0%,
+    rgba(102, 68, 255, 0.18) 32%,
+    var(--player-ring) 62%,
+    #c8bcff 100%
+  );
+  box-shadow: 0 0 14px rgba(102, 68, 255, 0.75);
+}
+.needle-hand::before {
+  content: '';
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-bottom: 15px solid #d3c8ff;
+  filter: drop-shadow(0 0 7px rgba(102, 68, 255, 0.9));
+}
+/* Petit moyeu central sous la bombe */
+.turn-needle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--player-ring);
+  box-shadow: 0 0 12px rgba(102, 68, 255, 0.9);
+}
+
 /* --- Bombe --- */
 .bomb-wrap {
   position: relative;

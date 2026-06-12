@@ -131,6 +131,7 @@ socket.on('game:turn', (data) => {
   timeLimit = data.timeLimit
   lastTickKey = -1
   ui.highlightActivePlayer(activePlayerId)
+  ui.pointTurnNeedle(players.findIndex((p) => p.id === activePlayerId), players.length)
   showChallenge(data.challenge)
   setupInput()
   if (data.coopMode) {
@@ -209,6 +210,7 @@ socket.on('game:roundEnd', (data) => {
   }
   activePlayerId = null
   ui.highlightActivePlayer(null)
+  ui.hideTurnNeedle()
   ui.showRoundEnd(data, players, config.mode, isHost, () =>
     socket.emit('game:ready')
   )
@@ -216,6 +218,7 @@ socket.on('game:roundEnd', (data) => {
 
 socket.on('game:end', (data) => {
   ui.hideRoundEnd()
+  ui.hideTurnNeedle()
   ui.showGameEnd(
     data,
     () => socket.emit('game:start'), // rejouer
@@ -264,6 +267,7 @@ socket.on('coop:end', (data) => {
   coopMode = true
   activePlayerId = null
   ui.highlightActivePlayer(null)
+  ui.hideTurnNeedle()
   if (!data.victory) explode()
   ui.hideCoopProgress()
   ui.showCoopEnd(data, () => socket.emit('game:start'), isHost)

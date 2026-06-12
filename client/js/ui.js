@@ -76,6 +76,32 @@ export function highlightActivePlayer(playerId) {
   })
 }
 
+// Aiguille de tour : pivote vers le joueur d'index `index` (sur `total`),
+// placés en cercle. On accumule l'angle pour toujours tourner dans le sens
+// horaire, comme une aiguille de montre. Masquée en disposition mobile (ligne).
+let needleAngle = 0
+export function pointTurnNeedle(index, total) {
+  const needle = document.getElementById('turnNeedle')
+  if (!needle) return
+  const isMobile = window.matchMedia('(max-width: 768px)').matches
+  if (isMobile || total <= 0 || index < 0) {
+    needle.style.display = 'none'
+    return
+  }
+  needle.style.display = 'block'
+  // Le joueur i est positionné à i*(360/n) degrés en partant du haut (cercle).
+  const desired = (index / total) * 360
+  const current = ((needleAngle % 360) + 360) % 360
+  const delta = (((desired - current) % 360) + 360) % 360 // 0..360 vers l'avant
+  needleAngle += delta
+  needle.style.transform = `rotate(${needleAngle}deg)`
+}
+
+export function hideTurnNeedle() {
+  const needle = document.getElementById('turnNeedle')
+  if (needle) needle.style.display = 'none'
+}
+
 export function updatePlayerLives(playerId, lives) {
   const card = document.getElementById(`player-${playerId}`)
   if (!card) return
