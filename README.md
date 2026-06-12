@@ -15,6 +15,9 @@ jeu, lobby en ligne et WebSocket. Stack 100 % vanilla.
 | 🏛️ **Capitales** | Taper une capitale contenant la combinaison |
 | ➕ **Calcul** | Résoudre l'opération (difficulté progressive) |
 | 📖 **Classique** | Taper un mot du dictionnaire contenant la combinaison |
+| 💣 **Coopératif** | Toute l'équipe désamorce une bombe partagée avant la fin du timer global ; chaque erreur retire 10 % du temps |
+
+Variantes (modes compétitifs) : **⚡ Blitz** (timer très court) et **💀 Mort subite** (1 vie). Des **🤖 bots** peuvent être ajoutés au lobby pour tester.
 
 ## Lancer le jeu
 
