@@ -6,6 +6,7 @@ import socket from './socket.js'
 import * as ui from './ui.js'
 import { renderBomb, updateTimer, explode, resetBomb, penaltyEffect, setArcFastTransition } from './bomb.js'
 import * as sfx from './sounds.js'
+import * as worldmap from './worldmap.js'
 
 // --- État local -----------------------------------------------------------
 let MY_ID = null
@@ -17,6 +18,7 @@ let activePlayerId = null
 let timeLimit = 10
 let lastTickKey = -1
 let _hostId = null
+let mapFoundCount = 0
 
 const MODE_NAMES = {
   classic: '📖 Classique',
@@ -110,6 +112,18 @@ socket.on('game:roundStart', (data) => {
   setArcFastTransition(false)
   if (coopMode) ui.showCoopProgress(0, Math.max(10, players.length * 5))
   else ui.hideCoopProgress()
+
+  // Mini-carte en mode Pays (compétitif ou sous-mode coop).
+  const showMap =
+    config.mode === 'countries' ||
+    (config.mode === 'coop' && config.coopSubMode === 'countries')
+  $('mapPanel').classList.toggle('hidden', !showMap)
+  if (showMap) {
+    $('mapHistory').innerHTML = ''
+    $('mapCount').textContent = '0'
+    mapFoundCount = 0
+    worldmap.renderMap($('worldMap')).then(() => worldmap.resetMap())
+  }
 })
 
 socket.on('game:turn', (data) => {
@@ -145,6 +159,12 @@ socket.on('game:answerResult', (data) => {
   if (data.correct) sfx.playCorrect()
   else sfx.playFail()
   ui.clearTyping(data.playerId)
+
+  // Mode Pays : allume le pays sur la carte et l'ajoute à l'historique.
+  if (data.correct && data.mapId) {
+    worldmap.lightUp(data.mapId)
+    addFoundCountry(data.answer)
+  }
 
   if (data.coop) {
     // Coopératif : pas de points de rapidité ; on met à jour la progression.
@@ -231,6 +251,15 @@ socket.on('coop:penalty', (data) => {
   setTimeout(() => setArcFastTransition(false), 320)
 })
 
+socket.on('coop:bonus', (data) => {
+  const total = config.coopTime || 60000
+  setArcFastTransition(true)
+  updateTimer(Math.min(1, data.newTimeRemaining / total), data.newTimeRemaining / 1000)
+  ui.coopBonusFlash(data.streak)
+  sfx.playCorrect()
+  setTimeout(() => setArcFastTransition(false), 320)
+})
+
 socket.on('coop:end', (data) => {
   coopMode = true
   activePlayerId = null
@@ -271,6 +300,8 @@ function renderLobby() {
   $('roundsVal').textContent = config.rounds
   $('livesRange').value = config.lives
   $('livesVal').textContent = config.lives
+  $('turnTimeRange').value = config.turnTime || 10
+  $('turnTimeVal').textContent = `${config.turnTime || 10} s`
 
   // Bascule entre réglages compétitifs et coopératifs.
   const isCoop = config.mode === 'coop'
@@ -331,6 +362,10 @@ $('livesRange').addEventListener('input', (e) => {
   if (isHost) socket.emit('lobby:setConfig', { rounds: +$('roundsRange').value, lives: +e.target.value })
 })
 
+$('turnTimeRange').addEventListener('input', (e) => {
+  $('turnTimeVal').textContent = `${e.target.value} s`
+  if (isHost) socket.emit('lobby:setConfig', { turnTime: +e.target.value })
+})
 $('coopTimeRange').addEventListener('input', (e) => {
   $('coopTimeVal').textContent = `${e.target.value} secondes`
   if (isHost) socket.emit('lobby:setConfig', { coopTime: +e.target.value * 1000 })
@@ -448,6 +483,17 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
   )
+}
+
+// Ajoute un pays à l'historique sous la carte (le plus récent en premier).
+function addFoundCountry(name) {
+  if (!name) return
+  mapFoundCount += 1
+  $('mapCount').textContent = mapFoundCount
+  const chip = document.createElement('span')
+  chip.className = 'map-chip'
+  chip.textContent = name
+  $('mapHistory').prepend(chip)
 }
 
 // Initialise la bombe SVG dès le chargement.

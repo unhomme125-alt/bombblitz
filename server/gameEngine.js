@@ -55,14 +55,14 @@ export function checkRoundEnd(players) {
 }
 
 // Durée du timer de bombe pour la manche courante (en secondes).
-// En mode Blitz : beaucoup moins de temps, plancher plus bas.
+// Base = temps par tour choisi dans le lobby ; diminue de 0.5s par manche.
+// En mode Blitz : moitié du temps, plancher plus bas.
 function bombDuration(room) {
+  const base = room.config.turnTime || 10
   if (room.config.blitz) {
-    const base = room.config.mode === 'math' ? 6 : 4
-    return Math.max(2.5, base - 0.3 * (room.currentRound - 1))
+    return Math.max(2, base * 0.5 - 0.2 * (room.currentRound - 1))
   }
-  const base = room.config.mode === 'math' ? 15 : 10
-  return Math.max(5, base - 0.5 * (room.currentRound - 1))
+  return Math.max(3, base - 0.5 * (room.currentRound - 1))
 }
 
 // ---------------------------------------------------------------------------
@@ -255,6 +255,7 @@ function applyCorrectAnswer(room, active, result, rawAnswer, io) {
     playerId: active.id,
     correct: true,
     answer: result.display || rawAnswer,
+    mapId: result.iso2 || null, // mode pays : pour la mini-carte
     lives: active.lives,
     speedPoints: active.speedPoints
   })
@@ -485,6 +486,7 @@ function handleCoopAnswer(room, playerId, answer, io) {
   // Bonne réponse : aucun changement de timer, challenge suivant immédiat.
   clearCoopTurnTimers(room)
   room.coop.challengesSolved += 1
+  room.coop.streak += 1
   room.coop.solvedByPlayer[active.id] = (room.coop.solvedByPlayer[active.id] || 0) + 1
   active.coopSolved = room.coop.solvedByPlayer[active.id]
   if (result.normalized) room.usedAnswers.add(result.normalized)
@@ -494,8 +496,19 @@ function handleCoopAnswer(room, playerId, answer, io) {
     correct: true,
     coop: true,
     answer: result.display || answer,
+    mapId: result.iso2 || null,
     progress: { solved: room.coop.challengesSolved, needed: room.coop.challengesNeeded }
   })
+
+  // Bonus de série : 10 bonnes réponses d'affilée → on regagne du temps.
+  if (room.coop.streak > 0 && room.coop.streak % 10 === 0) {
+    const { newTimeRemaining, bonusMs } = coop.applyBonus(room.coop)
+    io.to(room.code).emit('coop:bonus', {
+      newTimeRemaining,
+      bonusMs,
+      streak: room.coop.streak
+    })
+  }
 
   const end = coop.checkCoopEnd(room.coop)
   if (end.ended) return coopEnd(room, io, end.victory)
@@ -510,6 +523,7 @@ function coopFail(room, io, reason) {
   clearCoopTurnTimers(room)
   const active = room.players[room.currentTurnIndex]
 
+  room.coop.streak = 0 // une erreur casse la série
   const { newTimeRemaining, penaltyMs } = coop.applyPenalty(room.coop)
   io.to(room.code).emit('coop:penalty', {
     newTimeRemaining,

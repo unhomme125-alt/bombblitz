@@ -56,6 +56,10 @@
               <label>Vies par joueur : <strong id="livesVal">3</strong></label>
               <input type="range" id="livesRange" min="1" max="5" step="1" value="3" />
             </div>
+            <div class="config-row">
+              <label>⏱️ Temps par tour : <strong id="turnTimeVal">10 s</strong></label>
+              <input type="range" id="turnTimeRange" min="5" max="30" step="1" value="10" />
+            </div>
 
             <div class="variants">
               <button class="variant-btn" id="blitzBtn" data-variant="blitz">
@@ -113,6 +117,14 @@
 
   <!-- ====================== VUE JEU ====================== -->
   <main class="game-view hidden" id="gameView">
+    <!-- Mode Pays : mini-carte + historique des pays trouvés -->
+    <aside class="map-panel hidden" id="mapPanel">
+      <div class="map-title">🗺️ Carte du monde</div>
+      <div class="world-map" id="worldMap"></div>
+      <div class="map-history-title">Pays trouvés (<span id="mapCount">0</span>)</div>
+      <div class="map-history" id="mapHistory"></div>
+    </aside>
+
     <div class="arena" id="arena">
       <div class="players-layer" id="players"></div>
       <div class="bomb-center" id="bombContainer"></div>

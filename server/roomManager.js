@@ -58,6 +58,7 @@ export function createRoom(hostSocket, username) {
       lives: 3,
       blitz: false,
       suddenDeath: false,
+      turnTime: 10, // secondes par tour (modes compétitifs)
       coopTime: 60000, // ms, mode coopératif
       coopSubMode: 'classic'
     },
@@ -146,6 +147,8 @@ export function setRoomConfig(code, config) {
     room.config.lives = Math.min(5, Math.max(1, Math.round(config.lives)))
   if (typeof config.blitz === 'boolean') room.config.blitz = config.blitz
   if (typeof config.suddenDeath === 'boolean') room.config.suddenDeath = config.suddenDeath
+  if (Number.isFinite(config.turnTime))
+    room.config.turnTime = Math.min(30, Math.max(5, Math.round(config.turnTime)))
   // Mode coopératif : temps global (30-120s, pas de 15s) et sous-mode.
   if (Number.isFinite(config.coopTime))
     room.config.coopTime = Math.min(120000, Math.max(30000, Math.round(config.coopTime / 15000) * 15000))

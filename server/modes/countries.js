@@ -70,6 +70,7 @@ export function validateAnswer(syllable, answer, usedAnswers, countries) {
     valid: true,
     normalized: a,
     display: match.name,
+    iso2: match.iso2,
     exhausted: remainingAfter === 0
   }
 }

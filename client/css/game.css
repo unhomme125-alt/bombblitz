@@ -621,6 +621,77 @@ body {
 .pp-name { font-weight: 700; }
 .pp-score { font-size: 0.8rem; color: var(--text-muted); }
 
+/* ============ MODE PAYS : MINI-CARTE ============ */
+.map-panel {
+  position: absolute;
+  top: 70px;
+  left: 14px;
+  width: 280px;
+  max-width: 32vw;
+  background: rgba(20, 20, 36, 0.82);
+  border: 1px solid #2c2c4a;
+  border-radius: 14px;
+  padding: 0.7rem;
+  z-index: 8;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+}
+.map-title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: 0.4rem;
+  color: var(--text-primary);
+}
+.world-map {
+  width: 100%;
+  background: #0c0c18;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.world-map-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.wm-country {
+  fill: #2c2c46;
+  stroke: #12121f;
+  stroke-width: 0.3;
+  transition: fill 0.3s ease;
+}
+.wm-country.found {
+  fill: var(--accent-safe);
+  filter: drop-shadow(0 0 2px rgba(68, 255, 136, 0.8));
+}
+.map-history-title {
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.map-history {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.map-chip {
+  font-size: 0.72rem;
+  background: rgba(68, 255, 136, 0.14);
+  border: 1px solid rgba(68, 255, 136, 0.3);
+  color: #b9ffd4;
+  padding: 0.1rem 0.45rem;
+  border-radius: 6px;
+  animation: chipIn 0.25s ease;
+}
+@keyframes chipIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 /* ============ MODE COOPÉRATIF ============ */
 
 /* Bouton de mode coop : vert (esprit d'équipe) au lieu de violet. */
@@ -697,6 +768,10 @@ body {
   pointer-events: none;
   white-space: nowrap;
 }
+.coop-penalty-flash.bonus {
+  color: var(--accent-safe);
+  text-shadow: 0 0 20px rgba(68, 255, 136, 0.7);
+}
 .coop-penalty-flash.animate {
   animation: penaltyFlash 1s ease forwards;
 }
@@ -759,6 +834,14 @@ body {
 
   .coop-progress { top: 225px; }
   .submode-select { grid-template-columns: 1fr; }
+
+  .map-panel {
+    position: static;
+    width: 100%;
+    max-width: none;
+    margin-bottom: 0.6rem;
+  }
+  .map-history { max-height: 70px; }
 
   /* Joueurs en rangée horizontale scrollable sous la bombe. */
   .players-layer {

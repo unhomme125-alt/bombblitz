@@ -20,6 +20,7 @@ export function initCoopRound(room) {
     currentChallenge: null,
     subMode: room.config.coopSubMode,
     turnNumber: 0,
+    streak: 0, // bonnes réponses consécutives (sans erreur)
     solvedByPlayer: {}, // id -> nombre de challenges résolus
     turnTimer: null,
     globalTimer: null
@@ -54,6 +55,14 @@ export function applyPenalty(coopState) {
   const penaltyMs = Math.round(remaining * 0.1)
   coopState.deadline -= penaltyMs
   return { newTimeRemaining: Math.max(0, remaining - penaltyMs), penaltyMs }
+}
+
+// Bonus de série : redonne 10 % du temps total (sans dépasser le temps total).
+export function applyBonus(coopState) {
+  const bonusMs = Math.round(coopState.totalTime * 0.1)
+  const maxDeadline = Date.now() + coopState.totalTime
+  coopState.deadline = Math.min(maxDeadline, coopState.deadline + bonusMs)
+  return { newTimeRemaining: timeLeft(coopState), bonusMs }
 }
 
 // Détermine si la manche coopérative est terminée (victoire ou défaite).

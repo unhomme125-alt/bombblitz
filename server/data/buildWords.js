@@ -1,21 +1,31 @@
 // buildWords.js
-// Génère words_fr.json : un dictionnaire de mots français courants (noms
-// communs, verbes, adjectifs — pas de noms propres), de 4 à 15 lettres,
-// trié alphabétiquement et dédupliqué.
+// Génère words_fr.json : dictionnaire français COMPLET (noms, verbes conjugués,
+// adjectifs accordés, adverbes…), de 3 à 18 lettres, trié et dédupliqué.
 //
-// Tous les mots sont stockés sans accents et en minuscules pour simplifier
-// la validation côté serveur (la saisie joueur est normalisée de la même
-// façon). La liste couvre volontairement les combinaisons fréquentes :
-// "tion", "ment", "eur", "an", "oi", "ou", "pr", "tr", "bl", "gr", "ch",
-// "ph", "qu", etc.
+// Source principale : le package `an-array-of-french-words` (~330k formes,
+// conjugaisons et accords inclus). Si le package n'est pas installé, on se
+// rabat sur la liste intégrée `RAW` (mots courants).
+//
+// Tous les mots sont stockés sans accents et en minuscules pour simplifier la
+// validation côté serveur (la saisie joueur est normalisée de la même façon).
 //
 // Usage : node server/data/buildWords.js
 
-import { writeFileSync } from 'fs'
+import { writeFileSync, readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+
+// Tente de charger le grand dictionnaire externe (fichier JSON du package).
+let externalWords = []
+try {
+  const p = join(__dirname, '..', '..', 'node_modules', 'an-array-of-french-words', 'index.json')
+  externalWords = JSON.parse(readFileSync(p, 'utf-8'))
+  console.log(`📚 Package chargé : ${externalWords.length} formes brutes`)
+} catch {
+  console.log('⚠️  Package an-array-of-french-words absent — repli sur la liste intégrée')
+}
 
 const RAW = `
 abandon abattre abdiquer abeille abimer abolir abonner aborder aboutir aboyer
@@ -308,18 +318,17 @@ voyelle voyou vrac vrai vrille vrombir vue vulgaire vulnerable wagon week xenon 
 yourte zapper zebre zele zenith zephyr zeste zigzag zinc zizanie zodiaque zonage zone zoo zoom
 `
 
-// Découpe, nettoie, filtre par longueur (4-15), déduplique et trie.
+// Normalise : sans accents, minuscules, lettres a-z uniquement.
+const normalize = (w) =>
+  w.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '')
+
+// Fusionne la source externe et la liste intégrée, filtre par longueur (3-18),
+// déduplique et trie.
 const words = [
   ...new Set(
-    RAW.split(/\s+/)
-      .map((w) =>
-        w
-          .normalize('NFD')
-          .replace(/[̀-ͯ]/g, '')
-          .toLowerCase()
-          .replace(/[^a-z]/g, '')
-      )
-      .filter((w) => w.length >= 4 && w.length <= 15)
+    [...externalWords, ...RAW.split(/\s+/)]
+      .map(normalize)
+      .filter((w) => w.length >= 3 && w.length <= 18)
   )
 ].sort((a, b) => a.localeCompare(b, 'fr'))
 

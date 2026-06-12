@@ -8,31 +8,39 @@
   <link rel="stylesheet" href="/css/main.css" />
   <link rel="stylesheet" href="/css/lobby.css" />
 </head>
-<body>
+<body class="home-body">
   <main class="home">
     <header class="home-header">
-      <h1 class="logo">💣 BombBlitz</h1>
-      <p class="tagline">Le clone de BombParty — 4 modes, en ligne, entre amis</p>
+      <h1 class="logo">
+        <span class="logo-bomb">💣</span><span class="logo-bomb-word">BOMB</span><span class="logo-blitz-word">BLITZ</span>
+      </h1>
+      <p class="tagline">LE CLONE DE BOMBPARTY — 5 MODES, EN LIGNE, ENTRE AMIS</p>
     </header>
 
     <section class="home-card">
       <div class="field">
-        <label for="username">Ton pseudo</label>
-        <input id="username" type="text" placeholder="Ton pseudo" maxlength="16" autocomplete="off" />
+        <label for="username"><span class="field-icon">👤</span> TON PSEUDO</label>
+        <div class="input-wrap">
+          <span class="input-lead">🚩</span>
+          <input id="username" type="text" placeholder="Ton pseudo" maxlength="16" autocomplete="off" />
+        </div>
       </div>
 
       <div class="actions">
         <div class="action-block">
-          <h3>🚀 Nouvelle partie</h3>
-          <button id="createBtn" class="btn btn-primary">Créer une salle</button>
+          <h3>NOUVELLE PARTIE</h3>
+          <p class="action-sub">Crée une salle et invite tes amis</p>
+          <button id="createBtn" class="btn btn-primary">＋ CRÉER UNE SALLE</button>
         </div>
 
         <div class="action-block">
-          <h3>🔑 Rejoindre</h3>
-          <div class="join-row">
-            <input id="joinCode" type="text" placeholder="CODE" maxlength="4" autocomplete="off" />
-            <button id="joinBtn" class="btn btn-accent">OK</button>
+          <h3>REJOINDRE UNE SALLE</h3>
+          <div class="input-wrap">
+            <span class="input-lead">🔑</span>
+            <input id="joinCode" type="text" placeholder="Code de la salle" maxlength="4" autocomplete="off" />
           </div>
+          <button id="joinBtn" class="btn btn-accent">REJOINDRE</button>
+          <p class="action-hint">Demande le code à ton ami pour le rejoindre !</p>
         </div>
       </div>
 
@@ -40,7 +48,27 @@
     </section>
 
     <footer class="home-footer">
-      Tour par tour • Réponds avant l'explosion • Dernier survivant gagne
+      <div class="feature">
+        <span class="feature-ico">🎯</span>
+        <div>
+          <div class="feature-title">TOUR PAR TOUR</div>
+          <div class="feature-desc">Réfléchis avant d'agir</div>
+        </div>
+      </div>
+      <div class="feature">
+        <span class="feature-ico">💥</span>
+        <div>
+          <div class="feature-title">RÉPONDS AVANT L'EXPLOSION</div>
+          <div class="feature-desc">Sois le plus rapide</div>
+        </div>
+      </div>
+      <div class="feature">
+        <span class="feature-ico">🏆</span>
+        <div>
+          <div class="feature-title">DERNIER SURVIVANT GAGNE</div>
+          <div class="feature-desc">Seul le meilleur l'emporte</div>
+        </div>
+      </div>
     </footer>
   </main>
 

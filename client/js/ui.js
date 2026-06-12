@@ -288,15 +288,25 @@ export function hideCoopProgress() {
   if (wrap) wrap.classList.add('hidden')
 }
 
-// Message « ⚡ TEMPS ACCÉLÉRÉ ! » qui apparaît au centre (scale 0→1.2→1, fondu).
-export function coopPenaltyFlash() {
+// Message central animé (scale 0→1.2→1, fondu). Pénalité (rouge) par défaut,
+// ou bonus de série (vert).
+function coopFlash(text, bonus) {
   const el = document.getElementById('coopFlash')
   if (!el) return
-  el.classList.remove('hidden')
-  el.classList.remove('animate')
+  el.textContent = text
+  el.classList.toggle('bonus', !!bonus)
+  el.classList.remove('hidden', 'animate')
   void el.offsetWidth
   el.classList.add('animate')
   setTimeout(() => el.classList.add('hidden'), 1000)
+}
+
+export function coopPenaltyFlash() {
+  coopFlash('⚡ TEMPS ACCÉLÉRÉ !', false)
+}
+
+export function coopBonusFlash(streak) {
+  coopFlash(`⏱️ +TEMPS ! SÉRIE DE ${streak} 🔥`, true)
 }
 
 // Écran de fin coopératif (victoire verte qui pulse / défaite avec explosion).
