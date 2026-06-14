@@ -25,9 +25,13 @@ const MODE_NAMES = {
   countries: '🌍 Pays',
   capitals: '🏛️ Capitales',
   math: '➕ Calcul',
-  coop: '💣 Coopératif'
+  coop: '💣 Coopératif',
+  imposteur: '🔴 Imposteur'
 }
 let coopMode = false // partie coopérative en cours côté client
+let impMode = false // partie imposteur en cours côté client
+let isImpostor = false // suis-je l'imposteur cette partie ?
+let frozenTimer = null // timeout du gel de clavier en cours
 
 // --- Raccourcis DOM -------------------------------------------------------
 const $ = (id) => document.getElementById(id)
@@ -99,6 +103,11 @@ socket.on('game:roundStart', (data) => {
   config = data.config
   players = data.players
   coopMode = config.mode === 'coop'
+  impMode = false
+  isImpostor = false
+  $('arena').classList.remove('imposteur')
+  ui.hideImpostorHud()
+  ui.hideImpVote()
   ui.hideRoundEnd()
   ui.hideGameEnd()
   switchToGame()
@@ -107,6 +116,9 @@ socket.on('game:roundStart', (data) => {
     : `Manche ${data.round}/${data.totalRounds}`
   $('roundInfo').classList.remove('hidden')
   ui.renderPlayers(players, config.mode)
+  ui.clearHistory()
+  $('historyPanel').classList.remove('hidden')
+  ui.clearAllTyping()
   $('arena').classList.toggle('coop', coopMode)
   resetBomb()
   setArcFastTransition(false)
@@ -130,6 +142,7 @@ socket.on('game:turn', (data) => {
   activePlayerId = data.playerId
   timeLimit = data.timeLimit
   lastTickKey = -1
+  ui.clearAllTyping() // efface les bulles (le mot trouvé reste jusqu'ici)
   ui.highlightActivePlayer(activePlayerId)
   ui.pointTurnNeedle(players.findIndex((p) => p.id === activePlayerId), players.length)
   showChallenge(data.challenge)
@@ -156,36 +169,61 @@ socket.on('game:bombTick', (data) => {
 })
 
 socket.on('game:answerResult', (data) => {
-  ui.showAnswerFeedback(data.playerId, !!data.correct)
-  if (data.correct) sfx.playCorrect()
-  else sfx.playFail()
-  ui.clearTyping(data.playerId)
+  const p = players.find((x) => x.id === data.playerId)
 
-  // Mode Pays : allume le pays sur la carte et l'ajoute à l'historique.
-  if (data.correct && data.mapId) {
+  if (!data.correct) {
+    // Erreur (en coopératif). Même traitement que game:wrongAttempt.
+    handleWrong(data.playerId, data.answer)
+    return
+  }
+
+  // Bonne réponse : flash vert + le mot RESTE affiché jusqu'au prochain tour.
+  ui.showAnswerFeedback(data.playerId, true)
+  sfx.playCorrect()
+  ui.showFoundWord(data.playerId, data.answer)
+  ui.addHistoryEntry({
+    name: p ? p.username : '?',
+    color: p ? p.color : '#fff',
+    text: data.answer,
+    status: 'correct'
+  })
+
+  // Mode Pays : allume le pays sur la carte + historique des pays.
+  if (data.mapId) {
     worldmap.lightUp(data.mapId)
     addFoundCountry(data.answer)
   }
 
   if (data.coop) {
-    // Coopératif : pas de points de rapidité ; on met à jour la progression.
     if (data.progress) ui.showCoopProgress(data.progress.solved, data.progress.needed)
-  } else if (data.correct) {
-    const p = players.find((x) => x.id === data.playerId)
-    if (p && data.speedPoints != null) {
-      p.speedPoints = data.speedPoints
-      ui.updatePlayerScore(p.id, p, config.mode)
-    }
+  } else if (p && data.speedPoints != null) {
+    p.speedPoints = data.speedPoints
+    ui.updatePlayerScore(p.id, p, config.mode)
   }
   if (data.playerId === MY_ID) clearInput()
 })
 
-socket.on('game:answerRejected', () => {
-  ui.showAnswerFeedback(MY_ID, false)
+// Mauvaise réponse (compétitif) : diffusée à toute la salle.
+socket.on('game:wrongAttempt', (data) => handleWrong(data.playerId, data.answer))
+
+// Affichage commun d'une erreur : bulle rouge + secousse + vibration + son.
+function handleWrong(playerId, answer) {
+  ui.showAnswerFeedback(playerId, false)
+  ui.showWrongTyping(playerId, answer)
   sfx.playFail()
-  answerInput.classList.add('rejected')
-  setTimeout(() => answerInput.classList.remove('rejected'), 400)
-})
+  const p = players.find((x) => x.id === playerId)
+  ui.addHistoryEntry({
+    name: p ? p.username : '?',
+    color: p ? p.color : '#fff',
+    text: answer || 'erreur',
+    status: 'wrong'
+  })
+  if (playerId === MY_ID) {
+    if (navigator.vibrate) navigator.vibrate(180)
+    answerInput.classList.add('rejected')
+    setTimeout(() => answerInput.classList.remove('rejected'), 400)
+  }
+}
 
 socket.on('game:turnTimeout', (data) => {
   explode()
@@ -193,6 +231,12 @@ socket.on('game:turnTimeout', (data) => {
   const p = players.find((x) => x.id === data.playerId)
   if (p) p.lives = data.lives
   ui.animateLifeLoss(data.playerId, data.lives)
+  ui.addHistoryEntry({
+    name: p ? p.username : '?',
+    color: p ? p.color : '#fff',
+    text: 'temps écoulé',
+    status: 'timeout'
+  })
   if (data.playerId === MY_ID) clearInput()
 })
 
@@ -273,6 +317,177 @@ socket.on('coop:end', (data) => {
   ui.showCoopEnd(data, () => socket.emit('game:start'), isHost)
 })
 
+// --- Mode Imposteur (coopératif à traître caché) --------------------------
+
+// Erreur non fatale (ex : pas assez de joueurs) — reste dans le lobby.
+socket.on('game:notice', (data) => ui.toast(data.message || 'Action impossible'))
+
+socket.on('impostor:gameStart', (data) => {
+  config = data.config
+  players = data.players
+  impMode = true
+  coopMode = false
+  isImpostor = false
+  ui.hideRoundEnd()
+  ui.hideGameEnd()
+  ui.hideImpVote()
+  switchToGame()
+  $('roundInfo').textContent = `🔴 Imposteur · ${data.civilCount} Civils + 1 caché`
+  $('roundInfo').classList.remove('hidden')
+  ui.renderPlayers(players, 'imposteur')
+  ui.clearHistory()
+  ui.clearAllTyping()
+  $('arena').classList.remove('coop')
+  $('arena').classList.add('imposteur')
+  $('mapPanel').classList.add('hidden')
+  $('historyPanel').classList.remove('hidden')
+  ui.hideCoopProgress()
+  ui.hideImpostorHud()
+  ui.showCoopProgress(0, data.challengesNeeded) // « X / N désamorcés »
+  ui.updateSuspicionGauges(data.suspicion)
+  // La barre d'actions (appel d'urgence pour tous) s'affiche pour tout le monde.
+  ui.showImpostorHud({ isImpostor: false })
+  resetBomb()
+  setArcFastTransition(false)
+  ui.toast('Une bombe, un traître caché… désamorcez ensemble !')
+})
+
+// Rôle privé : reçu UNIQUEMENT par l'imposteur.
+socket.on('impostor:role', (data) => {
+  if (!data.isImpostor) return
+  isImpostor = true
+  ui.showImpostorHud({ isImpostor: true })
+  ui.setSabotageCount(data.sabotagesLeft)
+  ui.toast('🔴 Tu es l\'IMPOSTEUR. Sabote au bon moment, reste discret.')
+})
+
+socket.on('impostor:turn', (data) => {
+  activePlayerId = data.playerId
+  ui.clearAllTyping()
+  ui.highlightActivePlayer(activePlayerId)
+  ui.pointTurnNeedle(players.findIndex((p) => p.id === activePlayerId), players.length)
+  showChallenge(data.challenge)
+  if (data.progress) ui.showCoopProgress(data.progress.solved, data.progress.needed)
+  ui.armSabotage(false) // nouveau tour : sabotage non armé
+  setupInput()
+  // Le bouton Sabotage n'est cliquable que pendant MON tour.
+  if (isImpostor) ui.setSabotageActive(activePlayerId === MY_ID)
+})
+
+socket.on('impostor:answerResult', (data) => {
+  const p = players.find((x) => x.id === data.playerId)
+  if (data.correct) {
+    ui.showAnswerFeedback(data.playerId, true)
+    sfx.playCorrect()
+    ui.showFoundWord(data.playerId, data.word)
+    ui.addHistoryEntry({
+      name: p ? p.username : '?', color: p ? p.color : '#fff',
+      text: `${data.word} (+${Math.round((data.gainMs || 0) / 1000)}s)`, status: 'correct'
+    })
+  } else {
+    handleWrong(data.playerId, data.reason === 'timeout' ? 'temps écoulé' : 'erreur')
+  }
+  if (data.progress) ui.showCoopProgress(data.progress.solved, data.progress.needed)
+  if (data.playerId === MY_ID) clearInput()
+})
+
+// Variation immédiate du timer (gain vert / perte rouge) + flash central.
+socket.on('impostor:timer', (data) => {
+  const total = data.totalTime || config.impostorTime || 60000
+  setArcFastTransition(true)
+  updateTimer(Math.max(0, Math.min(1, data.fraction)), data.timeRemaining / 1000)
+  if (data.deltaMs >= 0) {
+    ui.impTimerFlash(`+${Math.round(data.deltaMs / 1000)}s`, true)
+    sfx.playCorrect()
+  } else {
+    ui.impTimerFlash(`${Math.round(data.deltaMs / 1000)}s`, false)
+    penaltyEffect()
+    sfx.playFail()
+  }
+  setTimeout(() => setArcFastTransition(false), 320)
+})
+
+socket.on('impostor:suspicionUpdate', (data) => {
+  ui.updateSuspicionGauges(data.suspicion)
+})
+
+// Mon sabotage : mise à jour du compteur (privé).
+socket.on('impostor:sabotageResult', (data) => {
+  ui.setSabotageCount(data.sabotagesLeft)
+  if (data.armed) ui.armSabotage(true)
+})
+
+// Cooldown du Freeze (privé, imposteur).
+socket.on('impostor:freezeCooldown', (data) => {
+  ui.startFreezeCooldown(data.remainingMs)
+})
+
+// Un freeze a été appliqué (broadcast, sans dire par qui).
+socket.on('impostor:freezeApplied', () => {
+  // Aucune trace pour les autres : ressemble à un aléa réseau côté victime.
+})
+
+// Je suis la victime du freeze : clavier bloqué + glitch CSS.
+socket.on('impostor:frozen', (data) => {
+  const dur = data.duration || 4000
+  answerInput.disabled = true
+  answerInput.classList.add('input-frozen')
+  $('impFrozenMsg').classList.remove('hidden')
+  if (navigator.vibrate) navigator.vibrate([40, 40, 40])
+  if (frozenTimer) clearTimeout(frozenTimer)
+  frozenTimer = setTimeout(() => {
+    answerInput.classList.remove('input-frozen')
+    $('impFrozenMsg').classList.add('hidden')
+    if (activePlayerId === MY_ID) { answerInput.disabled = false; answerInput.focus() }
+  }, dur)
+})
+
+// Appel d'urgence déclenché → écran de vote.
+socket.on('impostor:emergencyStarted', (data) => {
+  activePlayerId = null
+  ui.highlightActivePlayer(null)
+  ui.hideTurnNeedle()
+  $('inputArea').classList.add('hidden')
+  $('spectatorNote').classList.add('hidden')
+  ui.armSabotage(false)
+  if (data.callerId === MY_ID) ui.markEmergencyUsed()
+  const caller = players.find((p) => p.id === data.callerId)
+  ui.showImpVote(data.candidates, MY_ID, isHost, {
+    callerName: caller ? caller.username : '?',
+    timeLimit: data.timeLimit,
+    onVote: (targetId) => socket.emit('impostor:vote', { targetId }),
+    onForce: () => socket.emit('game:ready')
+  })
+})
+
+socket.on('impostor:voteProgress', (data) => {
+  ui.updateImpVoteProgress(data.voted, data.total)
+})
+
+socket.on('impostor:voteResult', (data) => {
+  if (data.excluded) {
+    const ex = players.find((p) => p.id === data.excluded)
+    if (ex) ex.eliminated = true
+    ui.eliminatePlayer(data.excluded)
+  }
+  ui.updateSuspicionGauges(data.suspicion)
+  ui.showVoteResult(data, players, () => {
+    ui.hideImpVote()
+    // Réaffiche la zone de saisie pour le tour suivant (gérée par impostor:turn).
+  })
+})
+
+socket.on('impostor:end', (data) => {
+  impMode = true
+  activePlayerId = null
+  ui.highlightActivePlayer(null)
+  ui.hideTurnNeedle()
+  ui.hideImpVote()
+  ui.hideImpostorHud()
+  if (data.winner === 'impostor' || data.winner == null) explode()
+  ui.showImpostorEnd(data, MY_ID, () => socket.emit('game:start'), isHost)
+})
+
 // --- Vue lobby ------------------------------------------------------------
 function renderLobby() {
   lobbyView.classList.remove('hidden')
@@ -307,10 +522,19 @@ function renderLobby() {
   $('turnTimeRange').value = config.turnTime || 10
   $('turnTimeVal').textContent = `${config.turnTime || 10} s`
 
-  // Bascule entre réglages compétitifs et coopératifs.
+  // Bascule entre réglages compétitifs, coopératifs et imposteur.
   const isCoop = config.mode === 'coop'
-  $('normalConfig').classList.toggle('hidden', isCoop)
+  const isImp = config.mode === 'imposteur'
+  $('normalConfig').classList.toggle('hidden', isCoop || isImp)
   $('coopConfig').classList.toggle('hidden', !isCoop)
+  $('impConfig').classList.toggle('hidden', !isImp)
+  // « Manches » n'a pas de sens en imposteur (une seule partie continue).
+  $('roundsConfigRow').classList.toggle('hidden', isImp)
+  const impSecs = Math.round((config.impostorTime || 60000) / 1000)
+  $('impTimeRange').value = impSecs
+  $('impTimeVal').textContent = `${impSecs} secondes`
+  // Info dynamique : nombre de Civils selon l'effectif (toujours 1 imposteur).
+  $('impRoleInfo').textContent = `Avec ${players.length} joueur${players.length > 1 ? 's' : ''} : ${Math.max(1, players.length - 1)} Civils · 1 Imposteur${players.length < 4 ? ' (4 minimum)' : ''}`
 
   // Variantes Blitz / Mort subite (modes compétitifs).
   $('blitzBtn').classList.toggle('selected', !!config.blitz)
@@ -333,7 +557,9 @@ function renderLobby() {
 
   // Récap pour l'invité.
   $('guestMode').textContent = MODE_NAMES[config.mode] || config.mode
-  if (isCoop) {
+  if (isImp) {
+    $('guestVariants').textContent = `⏱️ ${Math.round((config.impostorTime || 60000) / 1000)}s · 1 imposteur caché`
+  } else if (isCoop) {
     $('guestVariants').textContent = `${MODE_NAMES[config.coopSubMode]} · ${secs}s`
   } else {
     const variants = []
@@ -379,6 +605,10 @@ document.querySelectorAll('.submode-btn').forEach((btn) => {
     if (isHost) socket.emit('lobby:setConfig', { coopSubMode: btn.dataset.submode })
   })
 })
+$('impTimeRange').addEventListener('input', (e) => {
+  $('impTimeVal').textContent = `${e.target.value} secondes`
+  if (isHost) socket.emit('lobby:setConfig', { impostorTime: +e.target.value * 1000 })
+})
 
 $('blitzBtn').addEventListener('click', () => {
   if (isHost) socket.emit('lobby:setConfig', { blitz: !config.blitz })
@@ -395,6 +625,18 @@ $('removeBotBtn').addEventListener('click', () => {
 
 $('startBtn').addEventListener('click', () => {
   if (isHost) socket.emit('game:start')
+})
+
+// --- Actions du mode Imposteur (en jeu) -----------------------------------
+$('impSabotageBtn').addEventListener('click', () => {
+  if (impMode && isImpostor && activePlayerId === MY_ID) socket.emit('impostor:sabotage')
+})
+$('impEmergencyBtn').addEventListener('click', () => {
+  if (impMode) socket.emit('impostor:emergencyCall')
+})
+$('impFreezeBtn').addEventListener('click', () => {
+  if (!impMode || !isImpostor) return
+  ui.toggleFreezePicker(players, MY_ID, (targetId) => socket.emit('impostor:freeze', { targetId }))
 })
 
 // --- Vue jeu / input ------------------------------------------------------
@@ -436,6 +678,10 @@ function clearInput() {
 
 answerInput.addEventListener('input', () => {
   if (activePlayerId !== MY_ID) return
+  // En imposteur, on NE diffuse PAS la saisie : le mot ne se révèle qu'à la
+  // soumission (sinon on donnerait ses lettres en direct).
+  if (impMode) return
+  ui.broadcastTyping(MY_ID, answerInput.value) // miroir sur ma propre carte
   socket.emit('game:typing', { text: answerInput.value })
 })
 

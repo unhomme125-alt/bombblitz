@@ -103,7 +103,33 @@ io.on('connection', (socket) => {
     if (!room || room.hostId !== socket.id) return
     if (room.state !== 'lobby' && room.state !== 'gameEnd') return
     if (room.players.length < 1) return
+    // Le mode imposteur exige au moins 4 participants (humains + bots).
+    if (room.config.mode === 'imposteur' && room.players.length < 4) {
+      socket.emit('game:notice', { message: 'Le mode Imposteur nécessite au moins 4 joueurs (ajoute des bots).' })
+      return
+    }
     engine.startGame(room, io)
+  })
+
+  // --- Mode Imposteur : pouvoirs, appel d'urgence et vote -------------------
+  socket.on('impostor:sabotage', () => {
+    const room = rooms.getRoomBySocket(socket.id)
+    if (room) engine.handleImpostorSabotage(room, socket.id, io)
+  })
+
+  socket.on('impostor:freeze', ({ targetId }) => {
+    const room = rooms.getRoomBySocket(socket.id)
+    if (room) engine.handleImpostorFreeze(room, socket.id, targetId, io)
+  })
+
+  socket.on('impostor:emergencyCall', () => {
+    const room = rooms.getRoomBySocket(socket.id)
+    if (room) engine.handleImpostorEmergency(room, socket.id, io)
+  })
+
+  socket.on('impostor:vote', ({ targetId }) => {
+    const room = rooms.getRoomBySocket(socket.id)
+    if (room) engine.handleImpostorVote(room, socket.id, targetId, io)
   })
 
   // --- Réponse d'un joueur --------------------------------------------------

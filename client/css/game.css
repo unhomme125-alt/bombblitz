@@ -543,6 +543,26 @@ body {
   pointer-events: none;
 }
 .typing-bubble.show { opacity: 1; }
+.typing-bubble.wrong {
+  border-color: var(--accent);
+  color: #ffb3b3;
+  background: #2a1414;
+  box-shadow: 0 0 12px rgba(255, 68, 68, 0.5);
+}
+.typing-bubble.found {
+  border-color: var(--accent-safe);
+  color: #b9ffd4;
+  background: #14271c;
+  font-weight: 700;
+  box-shadow: 0 0 14px rgba(68, 255, 136, 0.5);
+}
+.typing-bubble.shake-bubble { animation: bubbleShake 0.4s ease; }
+@keyframes bubbleShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  60% { transform: translateX(5px); }
+  80% { transform: translateX(-3px); }
+}
 
 /* --- Challenge & saisie --- */
 .challenge {
@@ -921,4 +941,318 @@ body {
   .game-view {
     overflow-y: auto;
   }
+
+  .imp-actions { flex-wrap: wrap; }
+  .imp-vote-grid { grid-template-columns: 1fr; }
+}
+
+/* ============ MODE IMPOSTEUR ============ */
+
+/* Bouton de mode : violet/indigo (mystère). */
+.mode-imposteur.selected {
+  border-color: #9775fa;
+  background: rgba(151, 117, 250, 0.16);
+  box-shadow: 0 0 0 3px rgba(151, 117, 250, 0.22);
+}
+
+.imp-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin: 0.5rem 0 0.2rem;
+}
+.imp-hint strong { color: #b39dff; }
+
+/* En imposteur : bombe + barre « désamorcés » au centre (comme en coop),
+   pas de vies (l'élimination passe par le vote). */
+.arena.imposteur .lives { display: none; }
+/* Tour actif : halo violet. */
+.arena.imposteur .player-card.active {
+  animation: impBlink 0.9s ease-in-out infinite;
+}
+@keyframes impBlink {
+  0%, 100% { border-color: var(--player-ring); }
+  50% { border-color: #9775fa; }
+}
+
+/* Modale de vote. */
+.imp-vote-modal { max-width: 480px; }
+.imp-vote-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin: 1rem 0;
+}
+.imp-vote-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 0.8rem;
+  background: #12121f;
+  border: 2px solid #25253f;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+.imp-vote-btn:hover:not(:disabled) { border-color: #9775fa; transform: translateY(-1px); }
+.imp-vote-btn:disabled { opacity: 0.5; cursor: default; }
+.imp-vote-btn.chosen {
+  border-color: #9775fa;
+  background: rgba(151, 117, 250, 0.2);
+  opacity: 1;
+}
+.imp-vote-btn .dot {
+  width: 14px; height: 14px; border-radius: 50%; flex: 0 0 auto;
+}
+.imp-vote-status { color: var(--accent-safe); font-weight: 600; min-height: 1.2em; }
+.imp-vote-progress { color: var(--text-muted); font-size: 0.85rem; }
+
+/* Écran de révélation. */
+.imp-end { max-width: 560px; }
+.imp-reason { color: var(--accent-warn); margin: 0.3rem 0 0.6rem; }
+
+/* ============ MODE IMPOSTEUR — coopératif à traître caché ============ */
+
+/* Jauge de suspicion sous chaque avatar (👁️ 0-5). */
+.suspicion {
+  font-size: 0.72rem;
+  letter-spacing: -1px;
+  margin-top: 0.15rem;
+  min-height: 1em;
+  opacity: 0.85;
+  transition: transform 0.2s;
+}
+.suspicion.hot { filter: drop-shadow(0 0 4px #ff4444); transform: scale(1.12); }
+
+/* Barre d'actions (appel d'urgence + boutons imposteur). */
+.imp-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  margin: 0.3rem auto;
+  flex-wrap: wrap;
+}
+.imp-emergency-btn {
+  background: rgba(255, 68, 68, 0.14);
+  border: 1px solid rgba(255, 68, 68, 0.5);
+  color: #ff8585;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: transform 0.12s, background 0.2s;
+}
+.imp-emergency-btn:hover:not(:disabled) { transform: translateY(-1px); background: rgba(255, 68, 68, 0.22); }
+.imp-emergency-btn:disabled, .imp-emergency-btn.used { opacity: 0.4; cursor: default; }
+
+.imp-freeze-btn {
+  background: rgba(77, 171, 247, 0.14);
+  border: 1px solid rgba(77, 171, 247, 0.5);
+  color: #8ec8ff;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  min-width: 96px;
+}
+.imp-freeze-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* Compteur de sabotages ●●● → ●●○. */
+.imp-sabotage-dots {
+  display: flex;
+  gap: 0.2rem;
+  font-size: 1rem;
+  letter-spacing: 1px;
+}
+.sab-dot.on { color: #ff4d4d; }
+.sab-dot.off { color: #3a3a4c; }
+
+/* Bouton Saboter — discret, en bas à droite de l'input. */
+.input-area { position: relative; }
+.imp-sabotage-btn {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 68, 68, 0.35);
+  background: rgba(255, 68, 68, 0.1);
+  color: #ff8585;
+  cursor: pointer;
+  font-size: 1rem;
+  opacity: 0.65;
+  transition: opacity 0.15s, box-shadow 0.2s, transform 0.1s;
+}
+.imp-sabotage-btn:hover:not(:disabled) { opacity: 1; transform: scale(1.08); }
+.imp-sabotage-btn:disabled { opacity: 0.25; cursor: default; }
+.imp-sabotage-btn.armed {
+  opacity: 1;
+  box-shadow: 0 0 0 2px #ff4444, 0 0 12px #ff4444;
+  animation: sabPulse 0.6s ease-in-out infinite;
+}
+.imp-sabotage-btn.depleted { display: none; }
+@keyframes sabPulse { 50% { box-shadow: 0 0 0 3px #ff0000, 0 0 18px #ff2222; } }
+
+/* Sélecteur de cible du Freeze. */
+.imp-freeze-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  margin: 0.3rem auto;
+  padding: 0.5rem;
+  background: rgba(77, 171, 247, 0.08);
+  border: 1px solid rgba(77, 171, 247, 0.4);
+  border-radius: 12px;
+  width: fit-content;
+}
+.freeze-target {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--panel, #1a1a26);
+  border: 1px solid #2a2a3c;
+  border-radius: 10px;
+  padding: 0.3rem 0.6rem;
+  color: var(--text, #eee);
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+.freeze-target:hover { border-color: #4dabf7; }
+.freeze-target .avatar { width: 24px; height: 24px; font-size: 0.8rem; display: grid; place-items: center; border-radius: 50%; }
+
+/* Glitch du clavier freezé (spec). */
+@keyframes glitch {
+  0%, 100% { transform: translate(0); border-color: #ff4444; }
+  20% { transform: translate(-2px, 1px); }
+  40% { transform: translate(2px, -1px); border-color: #ff0000; }
+  60% { transform: translate(-1px, 2px); }
+  80% { transform: translate(1px, -2px); }
+}
+.input-frozen {
+  animation: glitch 0.15s infinite;
+  background: #1a0000;
+  pointer-events: none;
+}
+.imp-frozen-msg {
+  position: absolute;
+  left: 50%;
+  bottom: -1.4rem;
+  transform: translateX(-50%);
+  color: #ff6b6b;
+  font-size: 0.8rem;
+  font-weight: 700;
+  animation: glitch 0.2s infinite;
+}
+
+/* Flash central de gain / perte de temps. */
+.imp-timer-flash {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2.4rem;
+  font-weight: 900;
+  pointer-events: none;
+  z-index: 5;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+}
+.imp-timer-flash.gain { color: #69db7c; }
+.imp-timer-flash.loss { color: #ff4d4d; }
+.imp-timer-flash.animate { animation: impFlashPop 0.9s ease-out; }
+@keyframes impFlashPop {
+  0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
+  25% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+  100% { transform: translate(-50%, -90%) scale(1); opacity: 0; }
+}
+
+/* Bouton « Personne » du vote. */
+.imp-vote-btn.vote-none { grid-column: 1 / -1; justify-content: center; color: var(--text-muted); }
+
+/* Barre de décompte du vote d'urgence. */
+.imp-vote-timer {
+  height: 6px;
+  background: #2a2a3c;
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 0.6rem 0 0.3rem;
+}
+.imp-vote-timer span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #ff8585, #ff4444);
+}
+
+/* Révélation finale : cartes qui se retournent en 3D. */
+.imp-flip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+  margin: 0.8rem 0;
+}
+.imp-flip { width: 92px; height: 110px; perspective: 600px; }
+.imp-flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.5s;
+  transform-style: preserve-3d;
+}
+.imp-flip.flipped .imp-flip-inner { transform: rotateY(180deg); }
+.imp-flip-front, .imp-flip-back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.4rem;
+  text-align: center;
+}
+.imp-flip-front {
+  background: #15151f;
+  border: 2px solid #333;
+}
+.imp-flip-front .avatar { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; }
+.imp-flip-back {
+  transform: rotateY(180deg);
+  background: #181824;
+  border: 2px solid #333;
+}
+.imp-flip-back.is-impostor { border-color: #ff4444; background: rgba(255, 68, 68, 0.12); }
+.imp-flip-back.is-civil { border-color: #69db7c; background: rgba(105, 219, 124, 0.1); }
+.imp-flip-name { font-size: 0.72rem; color: var(--text-muted); }
+.imp-flip-role { font-weight: 800; font-size: 0.82rem; }
+.imp-flip-susp { font-size: 0.7rem; letter-spacing: -1px; }
+
+.imp-defused { color: #b39dff; font-weight: 700; }
+.imp-disc {
+  margin: 0.4rem 0;
+  font-size: 0.88rem;
+  color: var(--text, #ddd);
+}
+.imp-disc strong { color: #ffd166; }
+.imp-sablog { color: var(--text-muted); font-size: 0.78rem; }
+
+/* Info de rôle dans le lobby. */
+.imp-roleinfo {
+  margin: 0.4rem 0;
+  padding: 0.4rem 0.7rem;
+  background: rgba(151, 117, 250, 0.1);
+  border-radius: 8px;
+  color: #b39dff;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-align: center;
 }

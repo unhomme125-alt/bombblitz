@@ -16,8 +16,37 @@ jeu, lobby en ligne et WebSocket. Stack 100 % vanilla.
 | ➕ **Calcul** | Résoudre l'opération (difficulté progressive) |
 | 📖 **Classique** | Taper un mot du dictionnaire contenant la combinaison |
 | 💣 **Coopératif** | Toute l'équipe désamorce une bombe partagée avant la fin du timer global ; chaque erreur retire 10 % du temps |
+| 🔴 **Imposteur** | Coopératif à traître caché (4+ joueurs). Toute l'équipe désamorce une bombe commune à tour de rôle ; l'un de vous est l'**Imposteur** et peut **saboter**, **freezer** un clavier et provoquer l'explosion. Jauge de 👁️ suspicion + **🚨 Appel d'urgence** pour voter |
 
 Variantes (modes compétitifs) : **⚡ Blitz** (timer très court) et **💀 Mort subite** (1 vie). Des **🤖 bots** peuvent être ajoutés au lobby pour tester.
+
+### 🔴 Mode Imposteur en détail
+
+Mode **coopératif avec un traître caché**. Une **bombe commune** à timer global
+(30-120s, réglable) ; les joueurs répondent à tour de rôle à des challenges
+« combinaison ». L'**Imposteur** (toujours 1, désigné au hasard) voit le même
+écran que les Civils mais veut faire exploser la bombe sans se faire repérer.
+
+- **Timer** : chaque bonne réponse ajoute du temps selon la longueur du mot
+  (4→+3s, 5→+5s, 6→+8s, 7→+11s, 8+→+15s) ; toute erreur ou timeout retire **12s**.
+  Le timer ne descend jamais sous **5s**. On gagne quand le compteur de
+  challenges désamorcés (`joueurs × 4`, min 12) est atteint.
+- **Sabotage** (imposteur, 3 charges `●●●`) : un bouton 💣 discret force sa
+  réponse à être incorrecte — sans laisser de trace pour les autres.
+- **Freeze** (imposteur, 1×/min) : gèle le clavier d'un joueur 4s à son prochain
+  tour (animation glitch côté victime, cooldown visible côté imposteur).
+- **Suspicion** : jauge 👁️ 0-5 sous chaque avatar, mise à jour automatiquement
+  (rate 2 tours de suite, rate un mot facile, répond trop vite → +1 ; mot long
+  correct ou victime d'un freeze → −1).
+- **Appel d'urgence** (1 par joueur) : coûte **8s** immédiatement, gèle le jeu et
+  lance un **vote de 15s** (votes cachés, révélation simultanée). Majorité
+  absolue → exclusion. Exclure l'imposteur = victoire des Civils ; exclure un
+  Civil coûte **20s** de plus.
+- **Victoire** : les Civils gagnent en désamorçant la bombe ou en votant
+  l'imposteur ; l'imposteur gagne si la bombe explose ou s'il ne reste que 2
+  joueurs. À la fin, les cartes se retournent (flip 3D) et révèlent les rôles,
+  les sabotages utilisés et le **score de discrétion** de l'imposteur.
+- Composition : toujours **1 Imposteur**, les autres sont Civils (min 4 joueurs).
 
 ## Lancer le jeu
 

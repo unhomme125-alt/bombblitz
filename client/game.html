@@ -43,9 +43,10 @@
             <button class="mode-btn" data-mode="math"><span>➕</span>Calcul</button>
             <button class="mode-btn" data-mode="classic"><span>📖</span>Classique</button>
             <button class="mode-btn mode-coop" data-mode="coop"><span>💣</span>Coopératif</button>
+            <button class="mode-btn mode-imposteur" data-mode="imposteur"><span>🔴</span>Imposteur</button>
           </div>
 
-          <div class="config-row">
+          <div class="config-row" id="roundsConfigRow">
             <label>Nombre de manches : <strong id="roundsVal">3</strong></label>
             <input type="range" id="roundsRange" min="1" max="10" step="1" value="3" />
           </div>
@@ -92,6 +93,16 @@
             </div>
           </div>
 
+          <!-- Réglages du mode imposteur -->
+          <div id="impConfig" class="hidden">
+            <div class="config-row">
+              <label>⏱️ Timer de départ : <strong id="impTimeVal">60 secondes</strong></label>
+              <input type="range" id="impTimeRange" min="30" max="120" step="15" value="60" />
+            </div>
+            <div class="imp-roleinfo" id="impRoleInfo">Avec 4 joueurs : 3 Civils · 1 Imposteur</div>
+            <p class="imp-hint">Toute l'équipe désamorce <strong>une bombe commune</strong> à tour de rôle : chaque bonne réponse ajoute du temps, chaque erreur en retire 12 s. Mais l'un de vous est l'<strong>Imposteur</strong> — il joue normalement, peut <strong>saboter</strong> (3 fois), <strong>freezer</strong> un clavier (1×/min) et veut faire exploser la bombe. Surveillez la jauge de 👁️ suspicion et déclenchez un <strong>🚨 Appel d'urgence</strong> (coûte 8 s) pour voter. Minimum 4 joueurs.</p>
+          </div>
+
           <div class="bots-row">
             <span>🤖 Bots de test</span>
             <div class="bots-ctrl">
@@ -125,11 +136,19 @@
       <div class="map-history" id="mapHistory"></div>
     </aside>
 
+    <!-- Historique des réponses (coin haut-droit) -->
+    <aside class="history-panel" id="historyPanel">
+      <div class="history-title">📜 Historique</div>
+      <div class="answer-history" id="answerHistory"></div>
+    </aside>
+
     <div class="arena" id="arena">
       <div class="players-layer" id="players"></div>
       <!-- Aiguille qui pivote vers le joueur actif (façon aiguille de montre) -->
       <div class="turn-needle" id="turnNeedle"><div class="needle-hand"></div></div>
       <div class="bomb-center" id="bombContainer"></div>
+      <!-- Imposteur : flash de gain / perte de temps au centre -->
+      <div class="imp-timer-flash hidden" id="impTimerFlash"></div>
       <!-- Coopératif : message de pénalité au centre -->
       <div class="coop-penalty-flash hidden" id="coopFlash">⚡ TEMPS ACCÉLÉRÉ !</div>
       <!-- Coopératif : compteur de progression sous la bombe -->
@@ -139,6 +158,16 @@
       </div>
     </div>
 
+    <!-- Imposteur : barre d'actions (boutons affichés selon le rôle) -->
+    <div class="imp-actions hidden" id="impActions">
+      <button class="imp-freeze-btn hidden" id="impFreezeBtn">⌨️ Freeze</button>
+      <div class="imp-sabotage-dots hidden" id="impSabotageDots" title="Sabotages restants"></div>
+      <button class="imp-emergency-btn" id="impEmergencyBtn">🚨 Appel <span id="impEmergencyState">(1)</span></button>
+    </div>
+
+    <!-- Imposteur : sélecteur de cible du Freeze -->
+    <div class="imp-freeze-picker hidden" id="impFreezePicker"></div>
+
     <div class="challenge" id="challenge">
       <div class="challenge-label" id="challengeLabel">Combinaison</div>
       <div class="challenge-text" id="challengeText">—</div>
@@ -146,6 +175,8 @@
 
     <div class="input-area" id="inputArea">
       <input type="text" id="answerInput" placeholder="Ta réponse…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+      <button class="imp-sabotage-btn hidden" id="impSabotageBtn" title="Saboter ta réponse">💣</button>
+      <div class="imp-frozen-msg hidden" id="impFrozenMsg">⚡ Interférence…</div>
     </div>
     <p class="spectator-note hidden" id="spectatorNote">⏳ Au tour d'un autre joueur…</p>
   </main>
@@ -153,6 +184,7 @@
   <!-- Modales -->
   <div class="modal-overlay hidden" id="roundEndModal"><div class="modal"></div></div>
   <div class="modal-overlay hidden" id="gameEndModal"><div class="modal"></div></div>
+  <div class="modal-overlay hidden" id="impVoteModal"><div class="modal"></div></div>
 
   <div class="modal-overlay hidden" id="createdModal">
     <div class="modal">

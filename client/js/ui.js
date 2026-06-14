@@ -16,6 +16,7 @@ function playerCard(p) {
     <div class="pname">${escapeHtml(p.username)}</div>
     <div class="lives" data-lives></div>
     <div class="pscore" data-score></div>
+    <div class="suspicion hidden" data-suspicion></div>
     <div class="typing-bubble" data-typing></div>
   `
   return el
@@ -156,22 +157,81 @@ export function eliminatePlayer(playerId) {
 
 // --- Saisie en temps réel -------------------------------------------------
 
+// Affiche en direct ce que le joueur tape (état « saisie »).
 export function broadcastTyping(playerId, text) {
-  const card = document.getElementById(`player-${playerId}`)
-  if (!card) return
-  const bubble = card.querySelector('[data-typing]')
+  const bubble = bubbleOf(playerId)
   if (!bubble) return
   bubble.textContent = text
+  bubble.classList.remove('wrong', 'found')
   bubble.classList.toggle('show', !!text)
 }
 
-export function clearTyping(playerId) {
+function bubbleOf(playerId) {
   const card = document.getElementById(`player-${playerId}`)
-  const bubble = card?.querySelector('[data-typing]')
+  return card ? card.querySelector('[data-typing]') : null
+}
+
+// Erreur : la bulle devient rouge et vibre (la carte tremble aussi).
+export function showWrongTyping(playerId, text) {
+  const card = document.getElementById(`player-${playerId}`)
+  const bubble = bubbleOf(playerId)
+  if (bubble) {
+    if (text) bubble.textContent = text
+    bubble.classList.remove('found')
+    bubble.classList.add('show', 'wrong')
+    bubble.classList.remove('shake-bubble')
+    void bubble.offsetWidth
+    bubble.classList.add('shake-bubble')
+  }
+  if (card) {
+    card.classList.add('shake-card')
+    setTimeout(() => card.classList.remove('shake-card'), 450)
+  }
+}
+
+// Bonne réponse : la bulle devient verte et le mot RESTE jusqu'au prochain tour.
+export function showFoundWord(playerId, word) {
+  const bubble = bubbleOf(playerId)
+  if (!bubble) return
+  bubble.textContent = (word || '').toUpperCase()
+  bubble.classList.remove('wrong')
+  bubble.classList.add('show', 'found')
+}
+
+export function clearTyping(playerId) {
+  const bubble = bubbleOf(playerId)
   if (bubble) {
     bubble.textContent = ''
-    bubble.classList.remove('show')
+    bubble.classList.remove('show', 'wrong', 'found')
   }
+}
+
+// Efface toutes les bulles (début d'un nouveau tour).
+export function clearAllTyping() {
+  document.querySelectorAll('[data-typing]').forEach((b) => {
+    b.textContent = ''
+    b.classList.remove('show', 'wrong', 'found')
+  })
+}
+
+// --- Historique des réponses (coin de l'écran) ----------------------------
+export function addHistoryEntry({ name, color, text, status }) {
+  const list = document.getElementById('answerHistory')
+  if (!list) return
+  const row = document.createElement('div')
+  row.className = `hist-row hist-${status}`
+  const icon = status === 'correct' ? '🟢' : status === 'wrong' ? '🔴' : '💥'
+  row.innerHTML = `<span class="hist-ico">${icon}</span>` +
+    `<span class="hist-name" style="color:${color}">${escapeHtml(name)}</span>` +
+    `<span class="hist-word">${escapeHtml(text || '')}</span>`
+  list.prepend(row)
+  // Limite la taille de l'historique.
+  while (list.children.length > 30) list.removeChild(list.lastChild)
+}
+
+export function clearHistory() {
+  const list = document.getElementById('answerHistory')
+  if (list) list.innerHTML = ''
 }
 
 // --- Confettis (sans librairie) -------------------------------------------
@@ -368,6 +428,288 @@ export function showCoopEnd(data, onReplay, isHost) {
     <a href="index.html" class="btn" style="display:inline-block;margin-top:0.6rem;text-decoration:none">Quitter</a>
   `
   overlay.classList.remove('hidden')
+  if (isHost) overlay.querySelector('#replayBtn').addEventListener('click', onReplay)
+}
+
+// --- Mode Imposteur (coopératif à traître caché) --------------------------
+
+// Affiche / masque la barre d'actions. L'appel d'urgence est visible par tous ;
+// les boutons Sabotage/Freeze et le compteur n'apparaissent que pour l'imposteur.
+export function showImpostorHud({ isImpostor }) {
+  const actions = document.getElementById('impActions')
+  if (actions) actions.classList.remove('hidden')
+  document.getElementById('impSabotageBtn')?.classList.toggle('hidden', !isImpostor)
+  document.getElementById('impFreezeBtn')?.classList.toggle('hidden', !isImpostor)
+  document.getElementById('impSabotageDots')?.classList.toggle('hidden', !isImpostor)
+  const em = document.getElementById('impEmergencyBtn')
+  if (em) { em.disabled = false; em.classList.remove('used') }
+  const st = document.getElementById('impEmergencyState')
+  if (st) st.textContent = '(1)'
+}
+
+// Marque l'appel d'urgence comme utilisé (1 par joueur et par partie).
+export function markEmergencyUsed() {
+  const em = document.getElementById('impEmergencyBtn')
+  if (em) { em.disabled = true; em.classList.add('used') }
+  const st = document.getElementById('impEmergencyState')
+  if (st) st.textContent = '(utilisé)'
+}
+
+export function hideImpostorHud() {
+  document.getElementById('impActions')?.classList.add('hidden')
+  document.getElementById('impSabotageBtn')?.classList.add('hidden')
+  document.getElementById('impFreezeBtn')?.classList.add('hidden')
+  document.getElementById('impSabotageDots')?.classList.add('hidden')
+  document.getElementById('impFreezePicker')?.classList.add('hidden')
+  document.getElementById('impFrozenMsg')?.classList.add('hidden')
+  document.querySelectorAll('.suspicion').forEach((s) => s.classList.add('hidden'))
+}
+
+// Compteur de sabotages restants : ●●● → ●●○ → ●○○ → ○○○.
+export function setSabotageCount(left) {
+  const dots = document.getElementById('impSabotageDots')
+  if (!dots) return
+  const total = 3
+  let html = ''
+  for (let i = 0; i < total; i++) html += `<span class="sab-dot ${i < left ? 'on' : 'off'}">●</span>`
+  dots.innerHTML = html
+  dots.dataset.left = left
+  const btn = document.getElementById('impSabotageBtn')
+  if (btn && left <= 0) { btn.disabled = true; btn.classList.add('depleted') }
+}
+
+// Active/désactive le bouton Sabotage selon que c'est mon tour.
+export function setSabotageActive(active) {
+  const btn = document.getElementById('impSabotageBtn')
+  const dots = document.getElementById('impSabotageDots')
+  const left = dots ? +(dots.dataset.left || 0) : 0
+  if (btn) btn.disabled = !active || left <= 0
+}
+
+// Reflet visuel du sabotage armé (le bouton « brille » jusqu'à la soumission).
+export function armSabotage(armed) {
+  document.getElementById('impSabotageBtn')?.classList.toggle('armed', !!armed)
+}
+
+// Cooldown du Freeze : décompte affiché sur le bouton en temps réel.
+let freezeInterval = null
+export function startFreezeCooldown(remainingMs) {
+  const btn = document.getElementById('impFreezeBtn')
+  if (!btn) return
+  if (freezeInterval) clearInterval(freezeInterval)
+  let end = Date.now() + remainingMs
+  const render = () => {
+    const left = Math.max(0, end - Date.now())
+    if (left <= 0) {
+      clearInterval(freezeInterval); freezeInterval = null
+      btn.disabled = false
+      btn.textContent = '⌨️ Freeze'
+      return
+    }
+    btn.disabled = true
+    btn.textContent = `⌨️ ${Math.ceil(left / 1000)}s`
+  }
+  render()
+  freezeInterval = setInterval(render, 250)
+}
+
+// Sélecteur de cible du Freeze (avatars des autres joueurs non exclus).
+export function toggleFreezePicker(players, myId, onPick) {
+  const picker = document.getElementById('impFreezePicker')
+  if (!picker) return
+  if (!picker.classList.contains('hidden')) { picker.classList.add('hidden'); return }
+  picker.innerHTML = players
+    .filter((p) => p.id !== myId && !p.eliminated)
+    .map(
+      (p) => `<button class="freeze-target" data-id="${p.id}">
+        <span class="avatar" style="background:${p.color}">${p.isBot ? '🤖' : escapeHtml(p.username.charAt(0).toUpperCase())}</span>
+        <span>${escapeHtml(p.username)}</span>
+      </button>`
+    )
+    .join('')
+  picker.classList.remove('hidden')
+  picker.querySelectorAll('.freeze-target').forEach((b) => {
+    b.addEventListener('click', () => {
+      onPick(b.dataset.id)
+      picker.classList.add('hidden')
+    })
+  })
+}
+
+// Met à jour les jauges de suspicion (0-5 👁️) sous chaque avatar.
+export function updateSuspicionGauges(suspicion) {
+  if (!suspicion) return
+  for (const [id, level] of Object.entries(suspicion)) {
+    const card = document.getElementById(`player-${id}`)
+    if (!card) continue
+    const el = card.querySelector('[data-suspicion]')
+    if (!el) continue
+    el.classList.remove('hidden')
+    const n = Math.max(0, Math.min(5, level))
+    el.textContent = '👁️'.repeat(n) || '·'
+    el.classList.toggle('hot', n >= 3)
+  }
+}
+
+// Flash central de gain (+Xs, vert) ou perte (-Xs, rouge) de temps.
+export function impTimerFlash(text, positive) {
+  const el = document.getElementById('impTimerFlash')
+  if (!el) return
+  el.textContent = text
+  el.classList.toggle('gain', !!positive)
+  el.classList.toggle('loss', !positive)
+  el.classList.remove('hidden', 'animate')
+  void el.offsetWidth
+  el.classList.add('animate')
+  setTimeout(() => el.classList.add('hidden'), 900)
+}
+
+// Modale de vote d'urgence (15 s, votes cachés, révélation simultanée).
+export function showImpVote(candidates, myId, isHost, { onVote, onForce, callerName, timeLimit }) {
+  const overlay = document.getElementById('impVoteModal')
+  if (!overlay) return
+  const buttons = candidates
+    .map(
+      (c) => `
+      <button class="imp-vote-btn" data-id="${c.id}" ${c.id === myId ? 'disabled' : ''}>
+        <span class="dot" style="background:${c.color}"></span>
+        ${c.isBot ? '🤖 ' : ''}${escapeHtml(c.username)}${c.id === myId ? ' (toi)' : ''}
+      </button>`
+    )
+    .join('')
+
+  overlay.querySelector('.modal').className = 'modal imp-vote-modal'
+  overlay.querySelector('.modal').innerHTML = `
+    <h2 class="re-title">🚨 Vote d'urgence</h2>
+    <p class="re-reason">Appel lancé par <strong>${escapeHtml(callerName || '?')}</strong> · −8s.<br>Qui est l'imposteur ?</p>
+    <div class="imp-vote-grid">
+      ${buttons}
+      <button class="imp-vote-btn vote-none" data-id="">🙅 Personne</button>
+    </div>
+    <p class="imp-vote-status" id="impVoteStatus"></p>
+    <p class="imp-vote-progress" id="impVoteProgress"></p>
+    <div class="imp-vote-timer"><span id="impVoteTimerBar"></span></div>
+    ${isHost ? '<button class="btn btn-primary" id="impForceTally">Dépouiller maintenant</button>' : ''}
+  `
+  overlay.classList.remove('hidden')
+
+  overlay.querySelectorAll('.imp-vote-btn').forEach((btn) => {
+    if (btn.disabled) return
+    btn.addEventListener('click', () => {
+      overlay.querySelectorAll('.imp-vote-btn').forEach((b) => {
+        b.disabled = true
+        b.classList.toggle('chosen', b.dataset.id === btn.dataset.id)
+      })
+      const status = overlay.querySelector('#impVoteStatus')
+      if (status) status.textContent = '✅ Vote enregistré — en attente des autres…'
+      onVote(btn.dataset.id || null)
+    })
+  })
+  if (isHost) overlay.querySelector('#impForceTally').addEventListener('click', () => onForce())
+
+  // Barre de décompte 15 s (visuelle).
+  const bar = overlay.querySelector('#impVoteTimerBar')
+  if (bar && timeLimit) {
+    bar.style.transition = 'none'
+    bar.style.width = '100%'
+    void bar.offsetWidth
+    bar.style.transition = `width ${timeLimit}ms linear`
+    bar.style.width = '0%'
+  }
+}
+
+export function updateImpVoteProgress(voted, total) {
+  const el = document.getElementById('impVoteProgress')
+  if (el) el.textContent = `${voted} / ${total} ont voté`
+}
+
+export function hideImpVote() {
+  const overlay = document.getElementById('impVoteModal')
+  if (overlay) overlay.classList.add('hidden')
+}
+
+// Révélation du résultat d'un vote (exclusion / pas de majorité), puis reprise.
+export function showVoteResult(data, players, onDone) {
+  const overlay = document.getElementById('impVoteModal')
+  if (!overlay) return onDone && onDone()
+  const ex = data.excluded ? players.find((p) => p.id === data.excluded) : null
+  let line
+  if (ex) {
+    line = data.wasImpostor
+      ? `🎯 <strong>${escapeHtml(ex.username)}</strong> était l'IMPOSTEUR — exclu !`
+      : `❌ <strong>${escapeHtml(ex.username)}</strong> était un Civil… −20s.`
+  } else {
+    line = '🤝 Pas de majorité — personne n\'est exclu.'
+  }
+  const status = overlay.querySelector('#impVoteStatus')
+  if (status) status.innerHTML = line
+  const bar = overlay.querySelector('#impVoteTimerBar')
+  if (bar) bar.style.width = '0%'
+  // Si la partie continue, on referme la modale après une courte pause.
+  if (!data.wasImpostor) setTimeout(() => onDone && onDone(), 1700)
+}
+
+// Révélation finale : flip 3D séquentiel des cartes + rôle + sabotages +
+// score de discrétion de l'imposteur.
+export function showImpostorEnd(data, myId, onReplay, isHost) {
+  const overlay = document.getElementById('gameEndModal')
+  const win = data.winner
+  const title =
+    win === 'civils' ? '🛡️ Les Civils gagnent !'
+    : win === 'impostor' ? '🔴 L\'Imposteur gagne !'
+    : '⏹️ Partie interrompue'
+
+  const reasonLabels = {
+    defused: '💣 Bombe désamorcée à temps !',
+    explosion: '💥 La bombe a explosé.',
+    voteImpostor: '🗳️ L\'imposteur a été démasqué au vote.',
+    minority: '🔴 Il ne restait que 2 joueurs — l\'imposteur l\'emporte.',
+    aborted: 'Partie interrompue (départ d\'un joueur).'
+  }
+
+  const sabLog = (data.sabotageLog || [])
+    .map((s) => `tour ${s.turn} (${(s.syllable || '').toUpperCase()})`)
+    .join(', ')
+
+  const cards = data.players
+    .map((p) => {
+      const isImp = p.id === data.impostorId
+      const susp = data.suspicion ? (data.suspicion[p.id] || 0) : 0
+      return `
+        <div class="imp-flip" data-imp="${isImp ? 1 : 0}">
+          <div class="imp-flip-inner">
+            <div class="imp-flip-front" style="border-color:${p.color}">
+              <span class="avatar" style="background:${p.color}">${p.isBot ? '🤖' : escapeHtml(p.username.charAt(0).toUpperCase())}</span>
+              <span class="imp-flip-name">${escapeHtml(p.username)}${p.id === myId ? ' (toi)' : ''}</span>
+            </div>
+            <div class="imp-flip-back ${isImp ? 'is-impostor' : 'is-civil'}">
+              <span class="imp-flip-role">${isImp ? '🔴 Imposteur' : '🟢 Civil'}</span>
+              <span class="imp-flip-name">${escapeHtml(p.username)}</span>
+              <span class="imp-flip-susp">${'👁️'.repeat(Math.min(5, susp)) || '0 👁️'}</span>
+            </div>
+          </div>
+        </div>`
+    })
+    .join('')
+
+  overlay.querySelector('.modal').className = `modal imp-end ${win === 'civils' ? 'coop-victory' : 'coop-defeat'}`
+  overlay.querySelector('.modal').innerHTML = `
+    <h2 class="ge-title">${title}</h2>
+    <p class="imp-reason">${reasonLabels[data.reason] || ''} <span class="imp-defused">${data.challengesSolved}/${data.challengesNeeded} désamorcés</span></p>
+    <div class="imp-flip-grid">${cards}</div>
+    <div class="imp-disc">
+      🎭 Discrétion de l'imposteur : <strong>${data.discretion}%</strong>
+      &nbsp;·&nbsp; Sabotages utilisés : <strong>${data.sabotagesUsed}/3</strong>${sabLog ? ` <span class="imp-sablog">(${sabLog})</span>` : ''}
+    </div>
+    ${isHost ? '<button class="btn btn-primary" id="replayBtn">Rejouer</button>' : '<p class="re-wait">L\'hôte peut relancer une partie.</p>'}
+    <a href="index.html" class="btn" style="display:inline-block;margin-top:0.6rem;text-decoration:none">Quitter</a>
+  `
+  overlay.classList.remove('hidden')
+
+  // Flip séquentiel (400 ms d'écart) façon démasquage.
+  const flips = overlay.querySelectorAll('.imp-flip')
+  flips.forEach((f, i) => setTimeout(() => f.classList.add('flipped'), 300 + i * 400))
+
   if (isHost) overlay.querySelector('#replayBtn').addEventListener('click', onReplay)
 }
 
