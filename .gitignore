@@ -3,3 +3,7 @@ dist/
 *.log
 .DS_Store
 cloudflared.exe
+
+# Screenshots de debug
+coreection.png
+correction*.png

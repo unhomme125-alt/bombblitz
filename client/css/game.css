@@ -1164,17 +1164,18 @@ body {
   animation: glitch 0.2s infinite;
 }
 
-/* Flash central de gain / perte de temps. */
+/* Flash de gain / perte de temps : flotte AU-DESSUS de la bombe pour ne jamais
+   masquer le chrono affiché au centre. */
 .imp-timer-flash {
   position: absolute;
-  top: 50%;
+  top: calc(50% - 150px);
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 2.4rem;
+  font-size: 2.2rem;
   font-weight: 900;
   pointer-events: none;
-  z-index: 5;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+  z-index: 9;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
 }
 .imp-timer-flash.gain { color: #69db7c; }
 .imp-timer-flash.loss { color: #ff4d4d; }
@@ -1182,7 +1183,7 @@ body {
 @keyframes impFlashPop {
   0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
   25% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
-  100% { transform: translate(-50%, -90%) scale(1); opacity: 0; }
+  100% { transform: translate(-50%, -120%) scale(1); opacity: 0; }
 }
 
 /* Bouton « Personne » du vote. */
@@ -1279,6 +1280,10 @@ body {
 
 /* Imposteur : la bombe (chrono) reste au-dessus des cartes, jamais masquée. */
 .arena.imposteur .bomb-center { z-index: 6; }
-.arena.imposteur .coop-progress { z-index: 7; }
+/* Barre « désamorcés » descendue sous la bombe (dégagement du chrono). */
+.arena.imposteur .coop-progress {
+  z-index: 7;
+  top: calc(50% + 160px);
+}
 /* En imposteur, le score (vide) ne réserve pas d'espace : place à la suspicion. */
 .arena.imposteur .pscore:empty { display: none; }
