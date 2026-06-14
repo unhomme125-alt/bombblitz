@@ -99,6 +99,18 @@
               <label>⏱️ Timer de départ : <strong id="impTimeVal">60 secondes</strong></label>
               <input type="range" id="impTimeRange" min="30" max="120" step="15" value="60" />
             </div>
+            <div class="config-row">
+              <label>➖ Temps perdu par erreur : <strong id="impPenaltyVal">12 s</strong></label>
+              <input type="range" id="impPenaltyRange" min="5" max="20" step="1" value="12" />
+            </div>
+            <div class="config-row">
+              <label>➕ Temps gagné par bonne réponse</label>
+              <div class="submode-select impgain-select">
+                <button class="submode-btn impgain-btn" data-gain="0.6">🐢 Faible</button>
+                <button class="submode-btn impgain-btn selected" data-gain="1">⚖️ Normal</button>
+                <button class="submode-btn impgain-btn" data-gain="1.5">🚀 Généreux</button>
+              </div>
+            </div>
             <div class="imp-roleinfo" id="impRoleInfo">Avec 4 joueurs : 3 Civils · 1 Imposteur</div>
             <p class="imp-hint">Toute l'équipe désamorce <strong>une bombe commune</strong> à tour de rôle : chaque bonne réponse ajoute du temps, chaque erreur en retire 12 s. Mais l'un de vous est l'<strong>Imposteur</strong> — il joue normalement, peut <strong>saboter</strong> (3 fois), <strong>freezer</strong> un clavier (1×/min) et veut faire exploser la bombe. Surveillez la jauge de 👁️ suspicion et déclenchez un <strong>🚨 Appel d'urgence</strong> (coûte 8 s) pour voter. Minimum 4 joueurs.</p>
           </div>
@@ -128,6 +140,15 @@
 
   <!-- ====================== VUE JEU ====================== -->
   <main class="game-view hidden" id="gameView">
+    <!-- Imposteur : barre d'actions (haut de l'écran ; boutons selon le rôle) -->
+    <div class="imp-actions hidden" id="impActions">
+      <button class="imp-freeze-btn hidden" id="impFreezeBtn">⌨️ Freeze</button>
+      <div class="imp-sabotage-dots hidden" id="impSabotageDots" title="Sabotages restants"></div>
+      <button class="imp-emergency-btn" id="impEmergencyBtn">🚨 Appel <span id="impEmergencyState">(1)</span></button>
+    </div>
+    <!-- Imposteur : sélecteur de cible du Freeze (popover) -->
+    <div class="imp-freeze-picker hidden" id="impFreezePicker"></div>
+
     <!-- Mode Pays : mini-carte + historique des pays trouvés -->
     <aside class="map-panel hidden" id="mapPanel">
       <div class="map-title">🗺️ Carte du monde</div>
@@ -157,16 +178,6 @@
         <div class="coop-progress-label" id="coopProgressLabel">0 / 0 désamorcés 🔧</div>
       </div>
     </div>
-
-    <!-- Imposteur : barre d'actions (boutons affichés selon le rôle) -->
-    <div class="imp-actions hidden" id="impActions">
-      <button class="imp-freeze-btn hidden" id="impFreezeBtn">⌨️ Freeze</button>
-      <div class="imp-sabotage-dots hidden" id="impSabotageDots" title="Sabotages restants"></div>
-      <button class="imp-emergency-btn" id="impEmergencyBtn">🚨 Appel <span id="impEmergencyState">(1)</span></button>
-    </div>
-
-    <!-- Imposteur : sélecteur de cible du Freeze -->
-    <div class="imp-freeze-picker hidden" id="impFreezePicker"></div>
 
     <div class="challenge" id="challenge">
       <div class="challenge-label" id="challengeLabel">Combinaison</div>

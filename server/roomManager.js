@@ -61,7 +61,9 @@ export function createRoom(hostSocket, username) {
       turnTime: 10, // secondes par tour (modes compétitifs)
       coopTime: 60000, // ms, mode coopératif
       coopSubMode: 'classic',
-      impostorTime: 60000 // ms, timer de départ de la bombe (mode imposteur)
+      impostorTime: 60000, // ms, timer de départ de la bombe (mode imposteur)
+      impostorPenalty: 12000, // ms perdus par erreur/timeout (mode imposteur)
+      impostorGain: 1 // multiplicateur du temps gagné par bonne réponse
     },
     state: 'lobby', // 'lobby' | 'playing' | 'roundEnd' | 'gameEnd'
     currentRound: 0,
@@ -158,6 +160,12 @@ export function setRoomConfig(code, config) {
   // Mode imposteur : timer de départ de la bombe (30-120s, pas de 15s).
   if (Number.isFinite(config.impostorTime))
     room.config.impostorTime = Math.min(120000, Math.max(30000, Math.round(config.impostorTime / 15000) * 15000))
+  // Mode imposteur : temps perdu par erreur (5-20s, pas de 1s).
+  if (Number.isFinite(config.impostorPenalty))
+    room.config.impostorPenalty = Math.min(20000, Math.max(5000, Math.round(config.impostorPenalty / 1000) * 1000))
+  // Mode imposteur : multiplicateur du temps gagné (faible/normal/généreux).
+  if (Number.isFinite(config.impostorGain) && [0.6, 1, 1.5].includes(config.impostorGain))
+    room.config.impostorGain = config.impostorGain
   room.lastActivity = Date.now()
   return room
 }

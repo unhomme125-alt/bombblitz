@@ -533,6 +533,13 @@ function renderLobby() {
   const impSecs = Math.round((config.impostorTime || 60000) / 1000)
   $('impTimeRange').value = impSecs
   $('impTimeVal').textContent = `${impSecs} secondes`
+  const impPen = Math.round((config.impostorPenalty || 12000) / 1000)
+  $('impPenaltyRange').value = impPen
+  $('impPenaltyVal').textContent = `${impPen} s`
+  const impGain = config.impostorGain || 1
+  document.querySelectorAll('.impgain-btn').forEach((b) => {
+    b.classList.toggle('selected', +b.dataset.gain === impGain)
+  })
   // Info dynamique : nombre de Civils selon l'effectif (toujours 1 imposteur).
   $('impRoleInfo').textContent = `Avec ${players.length} joueur${players.length > 1 ? 's' : ''} : ${Math.max(1, players.length - 1)} Civils · 1 Imposteur${players.length < 4 ? ' (4 minimum)' : ''}`
 
@@ -608,6 +615,15 @@ document.querySelectorAll('.submode-btn').forEach((btn) => {
 $('impTimeRange').addEventListener('input', (e) => {
   $('impTimeVal').textContent = `${e.target.value} secondes`
   if (isHost) socket.emit('lobby:setConfig', { impostorTime: +e.target.value * 1000 })
+})
+$('impPenaltyRange').addEventListener('input', (e) => {
+  $('impPenaltyVal').textContent = `${e.target.value} s`
+  if (isHost) socket.emit('lobby:setConfig', { impostorPenalty: +e.target.value * 1000 })
+})
+document.querySelectorAll('.impgain-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    if (isHost) socket.emit('lobby:setConfig', { impostorGain: +btn.dataset.gain })
+  })
 })
 
 $('blitzBtn').addEventListener('click', () => {

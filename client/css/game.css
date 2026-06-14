@@ -1017,23 +1017,31 @@ body {
 
 /* Jauge de suspicion sous chaque avatar (👁️ 0-5). */
 .suspicion {
-  font-size: 0.72rem;
-  letter-spacing: -1px;
-  margin-top: 0.15rem;
-  min-height: 1em;
-  opacity: 0.85;
+  font-size: 0.7rem;
+  letter-spacing: -2px;
+  line-height: 1;
+  margin-top: 0.2rem;
+  min-height: 0.9em;
+  opacity: 0.9;
+  white-space: nowrap;
   transition: transform 0.2s;
 }
-.suspicion.hot { filter: drop-shadow(0 0 4px #ff4444); transform: scale(1.12); }
+.suspicion.hot { filter: drop-shadow(0 0 4px #ff4444); transform: scale(1.1); }
 
-/* Barre d'actions (appel d'urgence + boutons imposteur). */
+/* Barre d'actions imposteur : bandeau fin en HAUT de l'écran de jeu. */
 .imp-actions {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.7rem;
-  margin: 0.3rem auto;
-  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin: 0 auto 0.5rem;
+  padding: 0.4rem 0.9rem;
+  width: fit-content;
+  max-width: 96%;
+  background: rgba(20, 20, 36, 0.7);
+  border: 1px solid #2c2c4a;
+  border-radius: 999px;
 }
 .imp-emergency-btn {
   background: rgba(255, 68, 68, 0.14);
@@ -1099,18 +1107,23 @@ body {
 .imp-sabotage-btn.depleted { display: none; }
 @keyframes sabPulse { 50% { box-shadow: 0 0 0 3px #ff0000, 0 0 18px #ff2222; } }
 
-/* Sélecteur de cible du Freeze. */
+/* Sélecteur de cible du Freeze : popover flottant (n'altère pas la mise en page). */
 .imp-freeze-picker {
+  position: fixed;
+  top: 110px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: center;
-  margin: 0.3rem auto;
-  padding: 0.5rem;
-  background: rgba(77, 171, 247, 0.08);
-  border: 1px solid rgba(77, 171, 247, 0.4);
+  max-width: 92vw;
+  padding: 0.6rem;
+  background: rgba(16, 16, 30, 0.96);
+  border: 1px solid rgba(77, 171, 247, 0.5);
   border-radius: 12px;
-  width: fit-content;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
 }
 .freeze-target {
   display: flex;
@@ -1256,3 +1269,16 @@ body {
   font-size: 0.85rem;
   text-align: center;
 }
+
+/* Boutons « Temps gagné » du lobby (3 colonnes, thème violet). */
+.impgain-select { grid-template-columns: repeat(3, 1fr); }
+.impgain-btn.selected {
+  border-color: #9775fa;
+  background: rgba(151, 117, 250, 0.16);
+}
+
+/* Imposteur : la bombe (chrono) reste au-dessus des cartes, jamais masquée. */
+.arena.imposteur .bomb-center { z-index: 6; }
+.arena.imposteur .coop-progress { z-index: 7; }
+/* En imposteur, le score (vide) ne réserve pas d'espace : place à la suspicion. */
+.arena.imposteur .pscore:empty { display: none; }

@@ -63,6 +63,8 @@ export function assignImpostor(players) {
 export function initImpostorState(room) {
   const impostorId = assignImpostor(room.players)
   const totalTime = room.config.impostorTime || 60000
+  const penaltyMs = room.config.impostorPenalty || MISS_PENALTY_MS
+  const gainMult = room.config.impostorGain || 1
   const suspicion = {}
   const emergencyCallsLeft = {}
   const missStreak = {}
@@ -87,6 +89,8 @@ export function initImpostorState(room) {
     phase: 'playing', // 'playing' | 'voting' | 'end'
     callsAgainstImpostor: 0, // votes d'urgence où l'imposteur a été le plus visé
     totalTime,
+    penaltyMs, // temps perdu par erreur (configurable)
+    gainMult, // multiplicateur du temps gagné (configurable)
     deadline: Date.now() + totalTime,
     challengesSolved: 0,
     challengesNeeded: challengesToDefuse(room.players.length),

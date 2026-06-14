@@ -776,7 +776,7 @@ function impostorCorrect(room, io, active, result) {
   room.successCount += 1
 
   const wordLength = result.normalized.length
-  const gain = impostor.timeGainForWord(wordLength)
+  const gain = Math.round(impostor.timeGainForWord(wordLength) * room.imp.gainMult)
   impostor.applyTimerDelta(room.imp, gain)
 
   impostor.updateSuspicion(room.imp, {
@@ -816,7 +816,8 @@ function impostorFail(room, io, reason, sabotaged = false) {
     io.to(room.imp.impostorId).emit('impostor:sabotageResult', { sabotagesLeft: room.imp.sabotagesLeft })
   }
 
-  impostor.applyTimerDelta(room.imp, -impostor.MISS_PENALTY_MS)
+  const penalty = room.imp.penaltyMs
+  impostor.applyTimerDelta(room.imp, -penalty)
   const easy = (room.currentChallenge.syllable || '').length <= 2
   impostor.updateSuspicion(room.imp, {
     playerId: active.id,
@@ -829,10 +830,10 @@ function impostorFail(room, io, reason, sabotaged = false) {
     playerId: active.id,
     correct: false,
     reason,
-    lossMs: impostor.MISS_PENALTY_MS,
+    lossMs: penalty,
     progress: { solved: room.imp.challengesSolved, needed: room.imp.challengesNeeded }
   })
-  emitImpostorTimer(room, io, -impostor.MISS_PENALTY_MS)
+  emitImpostorTimer(room, io, -penalty)
   emitImpostorSuspicion(room, io)
 
   const end = impostor.checkVictory(room.imp, room.players)
